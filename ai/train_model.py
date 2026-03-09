@@ -3,89 +3,91 @@ import pickle
 import os
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
+
+
+print("Loading dataset...")
+
+# -----------------------------
+# Load dataset
+# -----------------------------
+df = pd.read_csv("../dataset/healthcare_claims_dataset_100k.csv")
+
+print("Dataset loaded:", df.shape)
 
 
 # -----------------------------
-# Load Dataset
+# Remove useless columns
 # -----------------------------
-df = pd.read_csv(r"C:\Users\sakth\healthcare-ai-ar-system\healthcare_claims_dataset_100k.csv")
-
-print("Dataset Loaded Successfully")
-print("Dataset shape:", df.shape)
-print(df.head())
+df = df.drop(columns=["claim_id", "patient_id"], errors="ignore")
 
 
 # -----------------------------
-# Remove ID columns
+# Feature engineering
 # -----------------------------
-df.drop(columns=["claim_id", "patient_id"], errors="ignore", inplace=True)
-
-
-# -----------------------------
-# Remove leakage columns
-# -----------------------------
-leakage_cols = [
-    "priority_score",
-    "risk_score",
-    "collection_priority",
-    "claim_status",
-    "days_in_ar",
-    "ar_bucket"
-]
-
-df.drop(columns=leakage_cols, errors="ignore", inplace=True)
+df["payment_gap"] = df["claim_amount"] - df["payment_received"]
 
 
 # -----------------------------
-# Handle Missing Values
+# Handle missing values
 # -----------------------------
-numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
-categorical_cols = df.select_dtypes(include=["object"]).columns
-
-df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
-df[categorical_cols] = df[categorical_cols].fillna("Unknown")
+df = df.fillna("Unknown")
 
 
 # -----------------------------
-# Feature Engineering
-# -----------------------------
-if {"claim_amount","payment_received"}.issubset(df.columns):
-    df["payment_gap"] = df["claim_amount"] - df["payment_received"]
-
-if {"days_in_ar","last_followup_days"}.issubset(df.columns):
-    df["followup_gap"] = df["days_in_ar"] - df["last_followup_days"]
-
-
-# -----------------------------
-# Encode Target Variable
+# Encode target variable
 # -----------------------------
 target_encoder = LabelEncoder()
 df["priority_label"] = target_encoder.fit_transform(df["priority_label"])
 
 
 # -----------------------------
-# Encode Categorical Features
-# -----------------------------
-encoders = {}
-
-categorical_cols = df.select_dtypes(include=["object","category"]).columns
-
-for col in categorical_cols:
-    le = LabelEncoder()
-    df[col] = le.fit_transform(df[col].astype(str))
-    encoders[col] = le
-
-
-# -----------------------------
-# Define Features & Target
+# Define features and target
 # -----------------------------
 X = df.drop(columns=["priority_label"])
 y = df["priority_label"]
 
-feature_columns = X.columns
+
+# -----------------------------
+# Detect column types
+# -----------------------------
+categorical_cols = X.select_dtypes(include=["object"]).columns.tolist()
+numeric_cols = X.select_dtypes(include=["int64", "float64"]).columns.tolist()
+
+
+# Ensure categorical columns are strings
+for col in categorical_cols:
+    X[col] = X[col].astype(str)
+
+
+# -----------------------------
+# Preprocessing pipeline
+# -----------------------------
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols),
+        ("num", "passthrough", numeric_cols)
+    ]
+)
+
+
+# -----------------------------
+# Machine Learning Pipeline
+# -----------------------------
+pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("model", RandomForestClassifier(
+        n_estimators=120,
+        max_depth=15,
+        class_weight="balanced",
+        random_state=42,
+        n_jobs=-1
+    ))
+])
 
 
 # -----------------------------
@@ -100,50 +102,30 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# -----------------------------
-# Train Model
-# -----------------------------
-model = RandomForestClassifier(
-    n_estimators=200,
-    max_depth=12,
-    random_state=42,
-    n_jobs=-1
-)
+print("Training model...")
 
-model.fit(X_train, y_train)
+pipeline.fit(X_train, y_train)
+
+print("Training completed.")
 
 
 # -----------------------------
-# Model Evaluation
+# Evaluate model
 # -----------------------------
-y_pred = model.predict(X_test)
+y_pred = pipeline.predict(X_test)
 
 print("\nAccuracy:", accuracy_score(y_test, y_pred))
+
 print("\nClassification Report:\n")
 print(classification_report(y_test, y_pred))
 
 
 # -----------------------------
-# Feature Importance
+# Save model
 # -----------------------------
-importance = pd.Series(model.feature_importances_, index=feature_columns)
+os.makedirs("../model", exist_ok=True)
 
-print("\nTop Important Features:")
-print(importance.sort_values(ascending=False).head(10))
+pickle.dump(pipeline, open("../model/model_pipeline.pkl", "wb"))
+pickle.dump(target_encoder, open("../model/target_encoder.pkl", "wb"))
 
-
-# -----------------------------
-# Create model directory
-# -----------------------------
-os.makedirs("model", exist_ok=True)
-
-
-# -----------------------------
-# Save Model & Metadata
-# -----------------------------
-pickle.dump(model, open("model/claim_priority_model.pkl","wb"))
-pickle.dump(encoders, open("model/encoders.pkl","wb"))
-pickle.dump(target_encoder, open("model/target_encoder.pkl","wb"))
-pickle.dump(feature_columns, open("model/feature_columns.pkl","wb"))
-
-print("\nModel and encoders saved successfully!")
+print("\nModel saved successfully to /model folder")
