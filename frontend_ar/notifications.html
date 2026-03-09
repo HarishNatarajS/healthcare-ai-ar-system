@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><title>ARFlow AI — Notifications</title><link rel="stylesheet" href="css/styles.css"/></head>
+<body><div class="app-layout" id="app"></div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth();const DATA=loadData();
+document.getElementById('app').innerHTML=renderSidebar('notifications')+`<div class="main-area">${renderTopbar('Notifications','Recent activity and system alerts')}<div class="content" id="c"></div></div>`+renderToast();
+const high=DATA.filter(d=>d.priority_label==='High'&&d.claim_status!=='Paid');
+const paid=DATA.filter(d=>d.claim_status==='Paid');
+document.getElementById('c').innerHTML=`
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+  <span class="badge b-teal">${high.length} unread</span>
+  <button class="btn btn-outline btn-sm" onclick="document.querySelectorAll('.notif.unread').forEach(n=>{n.classList.remove('unread');n.querySelector('.unread-dot')?.remove()});showToast('All marked as read')">✓ Mark all read</button>
+</div>
+<div class="card" style="padding:8px 14px"><div class="notif-list">
+${high.map((r,i)=>`<div class="notif unread" style="animation-delay:${i*.05}s" onclick="this.classList.remove('unread');this.querySelector('.unread-dot')?.remove()">
+  <div class="notif-ic ki-r">🚨</div>
+  <div class="notif-bd"><div class="notif-ti">${r.claim_id} — ${money(r.balance_due)} overdue · ${r.payer_type}</div><div class="notif-de">${r.days_in_ar}d in AR · ${r.followup_count} follow-up(s) · ${r.denial_flag?'Denial flag set':'No denial'} · ${r.department}</div><div class="notif-tm">Today · AI Engine</div></div>
+  <div class="unread-dot"></div>
+</div>`).join('')}
+${paid.map((r,i)=>`<div class="notif" style="animation-delay:${(high.length+i)*.05}s">
+  <div class="notif-ic ki-g">✅</div>
+  <div class="notif-bd"><div class="notif-ti">Payment received — ${r.claim_id} · ${money(r.payment_received)}</div><div class="notif-de">${r.payer_type} · ${r.service_type} · Resolved</div><div class="notif-tm">${r.days_in_ar} days ago · Payment System</div></div>
+</div>`).join('')}
+<div class="notif" style="animation-delay:.5s"><div class="notif-ic ki-t">📊</div><div class="notif-bd"><div class="notif-ti">Dataset loaded — ${DATA.length} claims imported</div><div class="notif-de">AI scored and ranked all claims. ${high.length} high-priority flagged.</div><div class="notif-tm">Session start · System</div></div></div>
+<div class="notif" style="animation-delay:.55s"><div class="notif-ic ki-gold" style="background:var(--gold-lt)">⚙️</div><div class="notif-bd"><div class="notif-ti">AI Model Active — Random Forest Classifier</div><div class="notif-de">120 estimators · max_depth 10 · priority scoring online</div><div class="notif-tm">Session start · AI Engine</div></div></div>
+</div></div>`;
+</script></body></html>

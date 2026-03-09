@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ARFlow AI — Dashboard</title>
+<link rel="stylesheet" href="css/styles.css"/>
+<style>
+.charts-row{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:20px}
+.bot-row{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+.r-stack{display:flex;flex-direction:column;gap:14px}
+.bar-chart{height:140px;display:flex;align-items:flex-end;gap:8px;padding-bottom:2px}
+.bcg{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bcb{width:100%;border-radius:4px 4px 0 0;min-height:2px;transition:height .9s cubic-bezier(.23,1,.32,1);cursor:pointer}
+.bcb:hover{filter:brightness(.88)}
+.bcl{font-size:10px;color:var(--muted);font-weight:600;text-align:center}
+.leg-row{display:flex;gap:14px;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.ld{width:8px;height:8px;border-radius:50%}
+.donut-wrap{display:flex;gap:18px;align-items:center}
+.donut-pos{position:relative;width:120px;height:120px;flex-shrink:0}
+.donut-pos svg{transform:rotate(-90deg)}
+.donut-ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dn{font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--navy);line-height:1}
+.dl{font-size:9px;color:var(--muted);font-weight:700;letter-spacing:1px}
+.dlist{flex:1;display:flex;flex-direction:column;gap:9px}
+.dli{display:flex;align-items:center;gap:8px}
+.dli-c{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.dli-l{flex:1;font-size:12px;color:var(--muted)}
+.dli-v{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--navy)}
+.dli-p{font-size:11px;color:var(--muted2);margin-left:2px}
+.act-list{display:flex;flex-direction:column}
+.act-item{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.act-item:last-child{border-bottom:none;padding-bottom:0}
+.act-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.act-bd{flex:1}
+.act-ti{font-size:13px;font-weight:500;line-height:1.4}
+.act-ti b{color:var(--teal);font-weight:700}
+.act-tm{font-size:11px;color:var(--muted2);margin-top:2px}
+.act-am{font-weight:700;font-size:13px;flex-shrink:0;align-self:center;font-family:var(--font-display)}
+</style>
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth();
+const DATA=loadData();
+document.getElementById('app').innerHTML=renderSidebar('dashboard')+`<div class="main-area">${renderTopbar('AR Overview Dashboard','Real-time monitoring · AI-powered · '+new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))}<div class="content" id="c"></div></div>`+renderFollowModal(DATA)+renderToast();
+
+const unpaid=DATA.filter(d=>d.claim_status!=='Paid');
+const paid=DATA.filter(d=>d.claim_status==='Paid');
+const high=DATA.filter(d=>d.priority_label==='High'&&d.claim_status!=='Paid');
+const totalBal=unpaid.reduce((s,d)=>s+(d.balance_due||0),0);
+const avgAge=unpaid.length?Math.round(unpaid.reduce((s,d)=>s+(d.days_in_ar||0),0)/unpaid.length):0;
+const collRate=DATA.length?Math.round(paid.length/DATA.length*100):0;
+
+function agingSect(rows){
+  const bkt=(mn,mx)=>rows.filter(r=>r.days_in_ar>=mn&&(mx===null||r.days_in_ar<mx));
+  const max=Math.max(...[[0,30],[30,60],[60,90],[90,120],[120,null]].map(([a,b])=>bkt(a,b).reduce((s,r)=>s+r.balance_due,0)),1);
+  return['0–30d','31–60d','61–90d','91–120d','120+d'].map((l,i)=>{
+    const ranges=[[0,30],[30,60],[60,90],[90,120],[120,null]];
+    const cols=['var(--green)','var(--teal)','var(--amber)','var(--gold)','var(--red)'];
+    const amt=bkt(...ranges[i]).reduce((s,r)=>s+r.balance_due,0);
+    const w=Math.round(amt/max*100);
+    return `<div class="aging-item"><div class="al">${l}</div><div class="at"><div class="af" data-w="${w}" style="background:${cols[i]};width:0%"></div></div><div class="av" style="color:${cols[i]}">${money(amt)}</div></div>`;
+  }).join('');
+}
+
+const h=DATA.filter(d=>d.priority_label==='High').length;
+const m2=DATA.filter(d=>d.priority_label==='Medium').length;
+const lo=DATA.filter(d=>d.priority_label==='Low').length;
+const tot=DATA.length||1;
+const C=238.76;
+const hp=h/tot*C,mp=m2/tot*C,lp=lo/tot*C;
+
+document.getElementById('c').innerHTML=`
+${high.length?`<div class="alert-ban ab-warn"><span style="font-size:18px">⚠️</span><span class="ab-txt"><strong>${high.length} high-priority claims</strong> need immediate action. <a href="alerts.html" style="color:var(--gold-d);font-weight:700">View Alerts →</a></span><button class="ab-close" onclick="this.closest('.alert-ban').remove()">✕</button></div>`:''}
+<div class="kpi-grid">
+  <div class="kpi" style="animation-delay:.05s"><div class="kpi-top"><div class="kpi-ic ki-t">📄</div><span class="kpi-trend t-dn">↑ ${unpaid.length}</span></div><div class="kpi-val" id="k1">—</div><div class="kpi-lbl">Unpaid Claims</div><div class="kpi-foot">${DATA.length} total claims loaded</div></div>
+  <div class="kpi" style="animation-delay:.10s"><div class="kpi-top"><div class="kpi-ic ki-r">💰</div><span class="kpi-trend t-dn">At Risk</span></div><div class="kpi-val" id="k2">—</div><div class="kpi-lbl">Total Balance Due</div><div class="kpi-foot">${high.length} high-priority claims</div></div>
+  <div class="kpi" style="animation-delay:.15s"><div class="kpi-top"><div class="kpi-ic ki-a">⏱️</div><span class="kpi-trend t-w">${avgAge}d avg</span></div><div class="kpi-val" id="k3">—</div><div class="kpi-lbl">Avg Days in AR</div><div class="kpi-foot">Target: under 45 days</div></div>
+  <div class="kpi" style="animation-delay:.20s"><div class="kpi-top"><div class="kpi-ic ki-g">✅</div><span class="kpi-trend t-up">↑ ${collRate}%</span></div><div class="kpi-val" id="k4">—</div><div class="kpi-lbl">Collection Rate</div><div class="kpi-foot">${paid.length} of ${DATA.length} paid</div></div>
+</div>
+<div class="charts-row">
+  <div class="card"><div class="card-hd"><div><div class="card-title">Claims by Status</div><div class="card-sub">Current dataset breakdown</div></div></div><div class="bar-chart" id="bChart"></div><div class="leg-row"><div class="leg"><div class="ld" style="background:var(--green)"></div>Paid</div><div class="leg"><div class="ld" style="background:var(--gold)"></div>Pending</div><div class="leg"><div class="ld" style="background:var(--teal)"></div>In Review</div><div class="leg"><div class="ld" style="background:var(--red)"></div>Denied</div></div></div>
+  <div class="card"><div class="card-hd"><div><div class="card-title">Priority Split</div><div class="card-sub">AI-scored</div></div></div>
+    <div class="donut-wrap">
+      <div class="donut-pos"><svg viewBox="0 0 100 100" width="120" height="120"><circle cx="50" cy="50" r="38" fill="none" stroke="#e8eef8" stroke-width="15"/><circle cx="50" cy="50" r="38" fill="none" stroke="#dc3545" stroke-width="15" stroke-dasharray="${hp} ${C-hp}" stroke-dashoffset="0"/><circle cx="50" cy="50" r="38" fill="none" stroke="#c9952a" stroke-width="15" stroke-dasharray="${mp} ${C-mp}" stroke-dashoffset="${-hp}"/><circle cx="50" cy="50" r="38" fill="none" stroke="#0d7377" stroke-width="15" stroke-dasharray="${lp} ${C-lp}" stroke-dashoffset="${-(hp+mp)}"/></svg><div class="donut-ctr"><div class="dn">${tot}</div><div class="dl">CLAIMS</div></div></div>
+      <div class="dlist"><div class="dli"><div class="dli-c" style="background:var(--red)"></div><div class="dli-l">High</div><div class="dli-v">${h}</div><div class="dli-p">${Math.round(h/tot*100)}%</div></div><div class="dli"><div class="dli-c" style="background:var(--gold)"></div><div class="dli-l">Medium</div><div class="dli-v">${m2}</div><div class="dli-p">${Math.round(m2/tot*100)}%</div></div><div class="dli"><div class="dli-c" style="background:var(--teal)"></div><div class="dli-l">Low</div><div class="dli-v">${lo}</div><div class="dli-p">${Math.round(lo/tot*100)}%</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="bot-row">
+  <div class="card"><div class="card-hd"><div><div class="card-title">Top Unpaid Claims</div><div class="card-sub">Highest balance due first</div></div><span class="badge b-red">⚡ Action Needed</span></div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Claim ID</th><th>Patient</th><th>Payer</th><th>Balance Due</th><th>Age</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead><tbody>
+    ${[...unpaid].sort((a,b)=>b.balance_due-a.balance_due).slice(0,5).map(r=>`<tr><td><span style="color:var(--teal);font-weight:700;font-size:12px;font-family:var(--font-display)">${r.claim_id}</span></td><td style="font-size:12px;color:var(--muted)">${r.patient_id}</td><td style="font-size:12px;font-weight:600">${r.payer_type}</td><td style="font-weight:700;font-family:var(--font-display)">${money(r.balance_due)}</td><td><span style="${ageStyle(r.days_in_ar)}">${r.days_in_ar}d</span></td><td>${prioBadge(r.priority_label)}</td><td>${statusBadge(r.claim_status)}</td><td><a href="tracker.html?id=${r.claim_id}" class="act-btn">Track</a></td></tr>`).join('')}
+    </tbody></table></div>
+    <div style="padding-top:12px;text-align:center"><a href="claims.html" class="btn btn-outline btn-sm">View All Claims →</a></div>
+  </div>
+  <div class="r-stack">
+    <div class="card"><div class="card-hd"><div><div class="card-title">AR Aging Buckets</div><div class="card-sub">Balance by age</div></div></div><div class="aging-row">${agingSect(unpaid)}</div></div>
+    <div class="card"><div class="card-hd"><div><div class="card-title">Live Activity</div></div><span class="badge b-green">● Live</span></div>
+      <div class="act-list">
+        ${high.slice(0,3).map(r=>`<div class="act-item"><div class="act-ic ki-r">🚨</div><div class="act-bd"><div class="act-ti">AI flagged <b>${r.claim_id}</b> — ${r.payer_type}</div><div class="act-tm">${r.days_in_ar}d overdue · ${r.denial_flag?'Denial flagged':r.claim_status}</div></div><div class="act-am" style="color:var(--red)">${money(r.balance_due)}</div></div>`).join('')}
+        ${paid.slice(0,1).map(r=>`<div class="act-item"><div class="act-ic ki-g">✅</div><div class="act-bd"><div class="act-ti">Payment cleared — <b>${r.claim_id}</b></div><div class="act-tm">${r.payer_type} · Resolved</div></div><div class="act-am" style="color:var(--green)">${money(r.payment_received)}</div></div>`).join('')}
+      </div>
+    </div>
+  </div>
+</div>`;
+
+setTimeout(()=>{
+  animateCount(document.getElementById('k1'),unpaid.length);
+  animateCount(document.getElementById('k2'),totalBal,'$');
+  animateCount(document.getElementById('k3'),avgAge,'','d');
+  animateCount(document.getElementById('k4'),collRate,'','%');
+  document.querySelectorAll('.af').forEach(b=>b.style.width=b.dataset.w+'%');
+  const statuses=['Paid','Pending','In Review','Denied'];
+  const colors=['var(--green)','var(--gold)','var(--teal)','var(--red)'];
+  const counts=statuses.map(s=>DATA.filter(d=>d.claim_status===s).length);
+  const mx=Math.max(...counts,1);
+  const ch=document.getElementById('bChart');
+  statuses.forEach((s,i)=>{
+    const g=document.createElement('div');g.className='bcg';
+    const b=document.createElement('div');b.className='bcb';b.style.background=colors[i];b.style.height='0';b.title=`${s}: ${counts[i]}`;
+    const lb=document.createElement('div');lb.className='bcl';lb.textContent=s;
+    g.appendChild(b);g.appendChild(lb);ch.appendChild(g);
+    setTimeout(()=>b.style.height=(counts[i]/mx*130)+'px',300+i*80);
+  });
+},200);
+</script>
+</body>
+</html>

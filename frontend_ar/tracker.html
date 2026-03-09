@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ARFlow AI — Follow-Up Tracker</title>
+<link rel="stylesheet" href="css/styles.css"/>
+<style>
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.info-box{text-align:center;background:var(--bg);border-radius:var(--r-sm);padding:10px}
+.info-val{font-family:var(--font-display);font-size:16px;font-weight:800;line-height:1}
+.info-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.detail-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.detail-item{font-size:12px}
+.detail-item span{color:var(--muted);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth();
+const DATA=loadData();
+const params=new URLSearchParams(window.location.search);
+let selId=params.get('id')||DATA[0]?.claim_id;
+document.getElementById('app').innerHTML=renderSidebar('tracker')+`<div class="main-area">${renderTopbar('Follow-Up Tracker','Track every claim interaction end-to-end')}<div class="content" id="c"></div></div>`+renderFollowModal(DATA)+renderToast();
+
+function render(){
+  const cl=DATA.find(d=>d.claim_id===selId)||DATA[0];
+  const sorted=[...DATA].sort((a,b)=>({High:3,Medium:2,Low:1}[b.priority_label]||0)-({High:3,Medium:2,Low:1}[a.priority_label]||0));
+  document.getElementById('c').innerHTML=`
+  <div class="tracker-grid">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--navy)">Select Claim</div><span class="badge b-teal">${DATA.length} total</span></div>
+      <div class="claim-scroll">${sorted.map((r,i)=>`<a class="cli ${r.claim_id===selId?'sel':''}" href="tracker.html?id=${r.claim_id}" style="animation-delay:${i*.03}s"><div class="cli-top"><span class="cli-id">${r.claim_id}</span>${prioBadge(r.priority_label)}</div><div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">${r.payer_type}</span><span style="font-weight:700;font-family:var(--font-display)">${money(r.balance_due)}</span></div><div class="cli-bot">${statusBadge(r.claim_status)}<span style="font-size:11px;color:var(--muted2);margin-left:auto">${r.days_in_ar}d</span></div></a>`).join('')}</div>
+    </div>
+    <div class="card" style="overflow-y:auto;max-height:calc(100vh - 150px)">
+      <div class="card-hd"><div><div class="card-title">${cl.claim_id} — Timeline</div><div class="card-sub">${cl.payer_type} · ${money(cl.balance_due)} outstanding</div></div>${statusBadge(cl.claim_status)}</div>
+      <div class="info-grid">
+        <div class="info-box"><div class="info-val">${money(cl.claim_amount)}</div><div class="info-lbl">Claim Amount</div></div>
+        <div class="info-box"><div class="info-val" style="color:${cl.balance_due>0?'var(--red)':'var(--green)'}">${money(cl.balance_due)}</div><div class="info-lbl">Balance Due</div></div>
+        <div class="info-box"><div class="info-val" style="color:${cl.days_in_ar>=90?'var(--red)':'var(--amber)'}">${cl.days_in_ar}d</div><div class="info-lbl">Days in AR</div></div>
+        <div class="info-box"><div class="info-val" style="color:var(--teal)">${cl.followup_count}</div><div class="info-lbl">Follow-Ups Sent</div></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-item"><span>Patient: </span>${cl.patient_id} · ${cl.patient_gender}, ${cl.patient_age}y</div>
+        <div class="detail-item"><span>City: </span>${cl.patient_city||'—'}</div>
+        <div class="detail-item"><span>Service: </span>${cl.service_type}</div>
+        <div class="detail-item"><span>Department: </span>${cl.department}</div>
+        <div class="detail-item"><span>Insurance: </span>${cl.insurance_company||'None'}</div>
+        <div class="detail-item"><span>Denial Flag: </span>${cl.denial_flag?'⚠️ Yes':'✅ No'}</div>
+        <div class="detail-item"><span>Approved: </span>${money(cl.approved_amount)}</div>
+        <div class="detail-item"><span>Last Follow-Up: </span>${cl.last_followup_days}d ago</div>
+      </div>
+      <div style="font-family:var(--font-display);font-size:13px;font-weight:700;margin-bottom:14px;color:var(--navy)">📋 Claim Timeline</div>
+      <div class="tl">
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal-lt)">📤</div><div class="tl-bd"><div class="tl-title">Claim Submitted</div><div class="tl-desc">Submitted to ${cl.payer_type} · ${cl.service_type} · ${money(cl.claim_amount)}</div><div class="tl-time">${cl.days_in_ar} days ago</div></div></div>
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal-lt)">✉️</div><div class="tl-bd"><div class="tl-title">Acknowledgement Received</div><div class="tl-desc">Approved amount: ${money(cl.approved_amount)}</div><div class="tl-time">${cl.days_in_ar-3} days ago</div></div></div>
+        ${cl.denial_flag?`<div class="tl-item"><div class="tl-dot" style="background:var(--red-lt)">❌</div><div class="tl-bd"><div class="tl-title">Denial Flag Set</div><div class="tl-desc">Payer flagged this claim — review denial reason.</div><div class="tl-time">${Math.round(cl.days_in_ar/2)} days ago</div></div></div>`:''}
+        ${cl.followup_count>0?`<div class="tl-item"><div class="tl-dot" style="background:var(--gold-lt)">🔔</div><div class="tl-bd"><div class="tl-title">${cl.followup_count} Follow-Up(s) Sent</div><div class="tl-desc">Last follow-up ${cl.last_followup_days} days ago.</div><div class="tl-time">${cl.last_followup_days} days ago</div></div></div>`:''}
+        ${cl.payment_received>0?`<div class="tl-item"><div class="tl-dot" style="background:var(--green-lt)">💵</div><div class="tl-bd"><div class="tl-title">Payment Received</div><div class="tl-desc">${money(cl.payment_received)} received from ${cl.payer_type}</div><div class="tl-time">Resolved</div></div></div>`:''}
+        <div class="tl-item"><div class="tl-dot" style="background:var(--teal-lt)">⏳</div><div class="tl-bd"><div class="tl-title">${cl.claim_status==='Paid'?'Claim Closed':'Awaiting Response'}</div><div class="tl-desc">${cl.claim_status==='Paid'?'Fully resolved.':'Monitoring payer response.'}</div><div class="tl-time">Today</div></div></div>
+      </div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="openModal('followModal')">✉️ Send Follow-Up</button>
+        <button class="btn btn-outline btn-sm" onclick="showToast('Note added!')">📝 Note</button>
+        ${cl.denial_flag?`<button class="btn btn-red btn-sm" onclick="showToast('Appeal filed for ${cl.claim_id}!')">⚖️ Appeal</button>`:''}
+        <button class="btn btn-outline btn-sm" onclick="exportCSV([DATA.find(d=>d.claim_id==='${cl.claim_id}')],'${cl.claim_id}.csv')">⬇ Export</button>
+      </div>
+    </div>
+  </div>`;
+}
+render();
+</script>
+</body>
+</html>

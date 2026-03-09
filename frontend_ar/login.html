@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ARFlow AI — Sign In</title>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="auth-brand-logo">
+      <div class="auth-brand-icon">💊</div>
+      <div class="auth-brand-name">ARFlow <span>AI</span></div>
+    </div>
+    <div class="auth-headline">Revenue Cycle<br/>Intelligence<br/><span>Reimagined</span></div>
+    <div class="auth-tagline">AI-powered accounts receivable automation built for modern healthcare billing teams. Follow up faster. Collect more.</div>
+    <div class="auth-stats">
+      <div class="auth-stat"><div class="auth-stat-val">94%</div><div class="auth-stat-lbl">Collection rate</div></div>
+      <div class="auth-stat"><div class="auth-stat-val">3×</div><div class="auth-stat-lbl">Faster follow-ups</div></div>
+      <div class="auth-stat"><div class="auth-stat-val">60%</div><div class="auth-stat-lbl">Less manual work</div></div>
+    </div>
+    <div class="auth-feat-list">
+      <div class="auth-feat"><div class="auth-feat-dot"></div>Random Forest AI priority scoring</div>
+      <div class="auth-feat"><div class="auth-feat-dot"></div>Auto-drafted follow-up messages</div>
+      <div class="auth-feat"><div class="auth-feat-dot"></div>Real-time AR aging dashboard</div>
+      <div class="auth-feat"><div class="auth-feat-dot"></div>Denial flag detection & appeal routing</div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+      <div style="margin-bottom:28px">
+        <div class="auth-form-title">Welcome back 👋</div>
+        <div class="auth-form-sub">Sign in to your ARFlow dashboard &nbsp;·&nbsp; New here? <a href="register.html">Create account</a></div>
+      </div>
+
+      <div class="form-alert alert-error" id="errAlert">
+        <span>🔒</span><span id="errMsg">Invalid credentials. Please try again.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <div class="form-field">
+          <span class="form-icon">✉️</span>
+          <input class="form-input" type="email" id="email" placeholder="you@hospital.com" value="admin@arflow.com"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="form-field">
+          <span class="form-icon">🔒</span>
+          <input class="form-input" type="password" id="pass" placeholder="Enter your password" value="password123"/>
+          <button class="eye-toggle" onclick="toggleEye('pass',this)">👁️</button>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer">
+          <input type="checkbox" checked style="accent-color:var(--teal);width:14px;height:14px"/> Remember me
+        </label>
+        <a href="forgot.html" style="font-size:13px;color:var(--teal);font-weight:600">Forgot password?</a>
+      </div>
+
+      <button class="auth-submit" id="loginBtn" onclick="doLogin()">
+        <div class="spinner" id="sp"></div>
+        <span id="btnTxt">Sign In →</span>
+      </button>
+
+
+  
+
+      <div style="margin-top:22px;text-align:center;font-size:13px;color:var(--muted)">
+        No account yet? <a href="register.html" style="color:var(--teal);font-weight:700">Register free →</a>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+if(localStorage.getItem('arflow_user')) window.location.href='dashboard.html';
+function toggleEye(id,btn){const f=document.getElementById(id);f.type=f.type==='password'?'text':'password';btn.textContent=f.type==='password'?'👁️':'🙈'}
+function doLogin(){
+  const e=document.getElementById('email').value.trim();
+  const p=document.getElementById('pass').value;
+  const err=document.getElementById('errAlert');
+  err.classList.remove('show');
+  if(!e||!p){document.getElementById('errMsg').textContent='Please fill in all fields.';err.classList.add('show');return}
+  document.getElementById('sp').style.display='block';
+  document.getElementById('btnTxt').textContent='Signing in…';
+  document.getElementById('loginBtn').disabled=true;
+  setTimeout(()=>{
+    if(e==='admin@arflow.com'&&p==='password123'){
+      localStorage.setItem('arflow_user',JSON.stringify({name:'Sarah R.',role:'RCM Manager',email:e}));
+      window.location.href='dashboard.html';
+    } else {
+      document.getElementById('sp').style.display='none';
+      document.getElementById('btnTxt').textContent='Sign In →';
+      document.getElementById('loginBtn').disabled=false;
+      document.getElementById('errMsg').textContent='Invalid email or password.';
+      err.classList.add('show');
+    }
+  },900);
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+</script>
+</body>
+</html>

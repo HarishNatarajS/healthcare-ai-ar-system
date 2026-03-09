@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><title>ARFlow AI — Priority Alerts</title><link rel="stylesheet" href="css/styles.css"/></head>
+<body><div class="app-layout" id="app"></div>
+<script src="js/shared.js"></script>
+<script>
+requireAuth();const DATA=loadData();
+document.getElementById('app').innerHTML=renderSidebar('alerts')+`<div class="main-area">${renderTopbar('Priority Alerts','Claims needing immediate action')}<div class="content" id="c"></div></div>`+renderFollowModal(DATA)+renderToast();
+const high=DATA.filter(d=>d.priority_label==='High'&&d.claim_status!=='Paid').sort((a,b)=>b.balance_due-a.balance_due);
+const denied=DATA.filter(d=>d.denial_flag&&d.claim_status!=='Paid');
+const paid=DATA.filter(d=>d.claim_status==='Paid');
+document.getElementById('c').innerHTML=`
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span class="badge b-red" style="font-size:13px;padding:5px 14px">${high.length} Active Alerts</span><button class="btn btn-outline btn-sm" onclick="showToast('All alerts marked as read')">✓ Mark All Read</button></div>
+<div style="display:flex;flex-direction:column;gap:10px">
+${high.map((r,i)=>`<div class="card" style="display:flex;align-items:flex-start;gap:14px;animation:fadeUp .3s ease ${i*.06}s both;transition:box-shadow .2s" onmouseover="this.style.boxShadow='var(--shadow)'" onmouseout="this.style.boxShadow=''">
+  <div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--red-lt)">🚨</div>
+  <div style="flex:1">
+    <div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:4px;color:var(--navy)">${r.claim_id} — ${r.payer_type} · <span style="color:var(--red)">${money(r.balance_due)}</span> at risk</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.5">${r.days_in_ar>=90?`Claim is <strong>${r.days_in_ar} days</strong> old — past 90-day threshold. `:''}${r.denial_flag?'Denial flag is set — appeal may be needed. ':''}${r.followup_count>0?`${r.followup_count} follow-up(s) sent (last: ${r.last_followup_days}d ago).`:'No follow-ups sent yet.'} Dept: ${r.department}</div>
+    <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="openModal('followModal')">✉️ Follow Up</button>
+      ${r.denial_flag?`<button class="btn btn-red btn-sm" onclick="showToast('Appeal filed for ${r.claim_id}!')">⚖️ Appeal</button>`:''}
+      <a href="tracker.html?id=${r.claim_id}" class="btn btn-outline btn-sm">📋 Track</a>
+      <button class="btn btn-outline btn-sm" onclick="this.closest('.card').remove();showToast('Dismissed')">Dismiss</button>
+    </div>
+  </div>${prioBadge(r.priority_label)}
+</div>`).join('')}
+${denied.length?`<div class="card" style="display:flex;align-items:flex-start;gap:14px;animation:fadeUp .4s ease both"><div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--red-lt)">❌</div><div style="flex:1"><div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:4px;color:var(--navy)">${denied.length} Claims with Denial Flag</div><div style="font-size:13px;color:var(--muted)">${denied.map(r=>r.claim_id).join(', ')}</div><div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="showToast('Bulk appeal filed!')">⚖️ Bulk Appeal</button><button class="btn btn-outline btn-sm" onclick="this.closest('.card').remove()">Dismiss</button></div></div></div>`:''}
+${paid.length?`<div class="card" style="display:flex;align-items:flex-start;gap:14px;animation:fadeUp .45s ease both"><div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--green-lt)">✅</div><div style="flex:1"><div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:4px;color:var(--navy)">${paid.length} Claims Paid — Ready to Reconcile</div><div style="font-size:13px;color:var(--muted)">${paid.map(r=>r.claim_id).join(', ')}</div><div style="margin-top:10px"><button class="btn btn-green btn-sm" onclick="showToast('Reconciliation exported!')">✅ Reconcile All</button></div></div></div>`:''}
+</div>`;
+</script></body></html>
