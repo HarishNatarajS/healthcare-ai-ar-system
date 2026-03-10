@@ -52,6 +52,7 @@ pip install -r requirements.txt
 ## 4️⃣ Run the Application
 
 ```bash
+cd backend
 python app.py
 ```
 
