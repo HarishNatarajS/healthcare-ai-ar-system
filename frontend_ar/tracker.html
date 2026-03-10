@@ -656,6 +656,8 @@ const data = await response.json()
 
 if(data.success){
 
+window.aiGeneratedMessage = data.message
+
 document.getElementById("msgBody").value = data.message
 
 updatePreview()
@@ -675,8 +677,27 @@ async function sendReminders(){
     return;
   }
 
-  let subject=document.getElementById('msgSubject').value.trim();
-let body=document.getElementById('msgBody').value.trim();
+let subject = document.getElementById('msgSubject').value.trim();
+let body = "";
+
+/* 1️⃣ Use AI message if available */
+if(window.aiGeneratedMessage){
+    body = window.aiGeneratedMessage;
+}
+
+/* 2️⃣ Otherwise use typed message */
+else if(document.getElementById('msgBody').value.trim()){
+    body = document.getElementById('msgBody').value.trim();
+}
+
+/* 3️⃣ Otherwise use live preview */
+else{
+    const preview=document.getElementById("previewBody").textContent.trim();
+
+    if(preview && preview!=="Select claims and compose a message to see the preview here."){
+        body=preview;
+    }
+}
 
 // Apply dynamic replacements for each selected claim
 const claims=[...selectedClaims].map(id=>CLAIMS.find(c=>c.id===id));

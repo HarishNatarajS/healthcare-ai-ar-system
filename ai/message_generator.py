@@ -5,7 +5,7 @@ import re
 # GEMINI CONFIG
 # -----------------------
 
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+GEMINI_API_KEY = "AIzaSyBKT8fY3qt1fqJtrMXkDO6voSUFRSsTz3k"
 
 genai.configure(api_key=GEMINI_API_KEY)
 
