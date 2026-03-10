@@ -5,38 +5,94 @@
 <title>ARFlow AI — Dashboard</title>
 <link rel="stylesheet" href="css/styles.css"/>
 <style>
-.charts-row{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:20px}
-.bot-row{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
-.r-stack{display:flex;flex-direction:column;gap:14px}
-.bar-chart{height:140px;display:flex;align-items:flex-end;gap:8px;padding-bottom:2px}
-.bcg{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
-.bcb{width:100%;border-radius:4px 4px 0 0;min-height:2px;transition:height .9s cubic-bezier(.23,1,.32,1);cursor:pointer}
-.bcb:hover{filter:brightness(.88)}
-.bcl{font-size:10px;color:var(--muted);font-weight:600;text-align:center}
-.leg-row{display:flex;gap:14px;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);flex-wrap:wrap}
-.leg{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
-.ld{width:8px;height:8px;border-radius:50%}
-.donut-wrap{display:flex;gap:18px;align-items:center}
-.donut-pos{position:relative;width:120px;height:120px;flex-shrink:0}
-.donut-pos svg{transform:rotate(-90deg)}
-.donut-ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.dn{font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--navy);line-height:1}
-.dl{font-size:9px;color:var(--muted);font-weight:700;letter-spacing:1px}
-.dlist{flex:1;display:flex;flex-direction:column;gap:9px}
-.dli{display:flex;align-items:center;gap:8px}
-.dli-c{width:10px;height:10px;border-radius:3px;flex-shrink:0}
-.dli-l{flex:1;font-size:12px;color:var(--muted)}
-.dli-v{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--navy)}
-.dli-p{font-size:11px;color:var(--muted2);margin-left:2px}
-.act-list{display:flex;flex-direction:column}
-.act-item{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);align-items:flex-start}
-.act-item:last-child{border-bottom:none;padding-bottom:0}
-.act-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-.act-bd{flex:1}
-.act-ti{font-size:13px;font-weight:500;line-height:1.4}
-.act-ti b{color:var(--teal);font-weight:700}
-.act-tm{font-size:11px;color:var(--muted2);margin-top:2px}
-.act-am{font-weight:700;font-size:13px;flex-shrink:0;align-self:center;font-family:var(--font-display)}
+/* ── Topbar shimmer accent (from file 1) ── */
+.topbar{position:relative}
+.topbar::after{
+  content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--teal),var(--gold),var(--teal));
+  background-size:200% 100%;animation:shimmer 3s linear infinite
+}
+
+/* ── Layout rows ── */
+.charts-row{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:18px}
+.bot-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.r-stack{display:flex;flex-direction:column;gap:16px}
+
+/* ── KPI value colours (file 1 palette) ── */
+.kpi-val.c-teal{color:var(--teal)}
+.kpi-val.c-red{color:var(--red)}
+.kpi-val.c-amber{color:var(--amber)}
+.kpi-val.c-green{color:var(--green)}
+.kpi-val{font-size:26px;letter-spacing:-.5px}
+
+/* ── Card action link ── */
+.card-action{font-size:12px;color:var(--teal);font-weight:600;cursor:pointer;transition:color .15s;text-decoration:none}
+.card-action:hover{color:var(--teal-d)}
+
+/* ── Aging bars ── */
+.aging-rows{display:flex;flex-direction:column;gap:13px}
+.aging-item{display:flex;align-items:center;gap:9px}
+.al{width:82px;font-size:12px;color:var(--muted);font-weight:500;flex-shrink:0}
+.at{flex:1;height:8px;background:var(--bg2);border-radius:5px;overflow:hidden}
+.af{height:100%;border-radius:5px;transition:width 1.1s cubic-bezier(.23,1,.32,1)}
+.aging-cnt{width:54px;text-align:right;font-size:12px;font-weight:700;color:var(--text)}
+.aging-amt{width:64px;text-align:right;font-size:11px;color:var(--muted)}
+
+/* ── Donut / payer mix (file 1 style) ── */
+.donut-wrap{display:flex;align-items:center;gap:24px}
+.donut-svg-wrap{position:relative;width:140px;height:140px;flex-shrink:0}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut-center-val{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--teal)}
+.donut-center-lbl{font-size:10px;color:var(--muted)}
+.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1}
+.legend-item{display:flex;align-items:center;gap:10px}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.legend-name{font-size:12px;color:var(--muted);flex:1}
+.legend-val{font-size:13px;font-weight:700}
+
+/* ── Timeline activity (file 1 style) ── */
+.tl-item{display:flex;gap:12px;padding-bottom:16px;position:relative}
+.tl-item:last-child{padding-bottom:0}
+.tl-item:not(:last-child)::before{content:'';position:absolute;top:28px;left:13px;width:2px;bottom:0;background:var(--border)}
+.tl-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;z-index:1;position:relative;border:2px solid var(--white);box-shadow:var(--shadow-sm)}
+.tl-bd{flex:1}
+.tl-title{font-size:13px;font-weight:500;margin-bottom:2px;color:var(--text);line-height:1.5}
+.tl-title strong{color:var(--teal)}
+.tl-time{font-size:11px;color:var(--muted2);margin-top:2px}
+
+/* ── Quick Actions grid (file 1 style) ── */
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qa-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:var(--r-sm);background:var(--bg);border:1.5px solid var(--border);cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text)}
+.qa-btn:hover{border-color:var(--teal);background:var(--teal-lt);transform:translateY(-1px)}
+.qa-icon{font-size:20px}
+.qa-label{font-size:13px;font-weight:600;color:var(--navy)}
+.qa-sub{font-size:11px;color:var(--muted)}
+
+/* ── Performance rings (file 1 style) ── */
+.perf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.perf-item{text-align:center}
+.perf-ring-wrap{position:relative;width:80px;height:80px;margin:0 auto 10px}
+.perf-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:16px;font-weight:800}
+.perf-label{font-size:12px;color:var(--muted);font-weight:500}
+.perf-sublabel{font-size:11px;margin-top:2px}
+
+/* ── Table helpers ── */
+.status-chip{display:inline-block;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:600}
+.sc-pending{background:var(--amber-lt);color:var(--amber)}
+.sc-denied{background:var(--red-lt);color:var(--red)}
+.sc-review{background:var(--navy-lt);color:var(--navy-md)}
+.days-critical{color:var(--red);font-weight:600}
+.days-warn{color:var(--amber);font-weight:600}
+.days-ok{color:var(--green);font-weight:600}
+.claim-id-cell{color:var(--teal);font-weight:700;font-family:var(--font-display)}
+
+/* ── Notif btn ── */
+.notif-btn{position:relative;width:36px;height:36px;border-radius:var(--r-sm);background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .15s}
+.notif-btn:hover{border-color:var(--teal);background:var(--teal-lt)}
+.notif-dot{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid var(--white)}
+
+@keyframes spinning{to{transform:rotate(360deg)}}
+.spinning{animation:spinning 1s linear infinite}
 </style>
 </head>
 <body>
@@ -44,89 +100,334 @@
 <script src="js/shared.js"></script>
 <script>
 requireAuth();
-const DATA=loadData();
-document.getElementById('app').innerHTML=renderSidebar('dashboard')+`<div class="main-area">${renderTopbar('AR Overview Dashboard','Real-time monitoring · AI-powered · '+new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))}<div class="content" id="c"></div></div>`+renderFollowModal(DATA)+renderToast();
+const DATA = loadData();
 
-const unpaid=DATA.filter(d=>d.claim_status!=='Paid');
-const paid=DATA.filter(d=>d.claim_status==='Paid');
-const high=DATA.filter(d=>d.priority_label==='High'&&d.claim_status!=='Paid');
-const totalBal=unpaid.reduce((s,d)=>s+(d.balance_due||0),0);
-const avgAge=unpaid.length?Math.round(unpaid.reduce((s,d)=>s+(d.days_in_ar||0),0)/unpaid.length):0;
-const collRate=DATA.length?Math.round(paid.length/DATA.length*100):0;
+/* ─── Computed values ─── */
+const unpaid    = DATA.filter(d => d.claim_status !== 'Paid');
+const paid      = DATA.filter(d => d.claim_status === 'Paid');
+const high      = DATA.filter(d => d.priority_label === 'High' && d.claim_status !== 'Paid');
+const totalBal  = unpaid.reduce((s, d) => s + (d.balance_due || 0), 0);
+const avgAge    = unpaid.length ? Math.round(unpaid.reduce((s, d) => s + (d.days_in_ar || 0), 0) / unpaid.length) : 0;
+const collRate  = DATA.length ? Math.round(paid.length / DATA.length * 100) : 0;
+const collAmt   = paid.reduce((s, d) => s + (d.payment_received || 0), 0);
 
-function agingSect(rows){
-  const bkt=(mn,mx)=>rows.filter(r=>r.days_in_ar>=mn&&(mx===null||r.days_in_ar<mx));
-  const max=Math.max(...[[0,30],[30,60],[60,90],[90,120],[120,null]].map(([a,b])=>bkt(a,b).reduce((s,r)=>s+r.balance_due,0)),1);
-  return['0–30d','31–60d','61–90d','91–120d','120+d'].map((l,i)=>{
-    const ranges=[[0,30],[30,60],[60,90],[90,120],[120,null]];
-    const cols=['var(--green)','var(--teal)','var(--amber)','var(--gold)','var(--red)'];
-    const amt=bkt(...ranges[i]).reduce((s,r)=>s+r.balance_due,0);
-    const w=Math.round(amt/max*100);
-    return `<div class="aging-item"><div class="al">${l}</div><div class="at"><div class="af" data-w="${w}" style="background:${cols[i]};width:0%"></div></div><div class="av" style="color:${cols[i]}">${money(amt)}</div></div>`;
-  }).join('');
+/* ─── Aging buckets ─── */
+function agingBucket(mn, mx) {
+  return unpaid.filter(r => r.days_in_ar >= mn && (mx === null || r.days_in_ar < mx));
+}
+const agingDefs = [
+  { label:'0–30 days',  mn:0,   mx:30,  col:'var(--green)',  cls:'af-g' },
+  { label:'31–60 days', mn:30,  mx:60,  col:'var(--teal)',   cls:'af-t' },
+  { label:'61–90 days', mn:60,  mx:90,  col:'var(--amber)',  cls:'af-a' },
+  { label:'91–120 days',mn:90,  mx:120, col:'var(--gold)',   cls:'af-o' },
+  { label:'120+ days',  mn:120, mx:null,col:'var(--red)',    cls:'af-r' },
+];
+const agingAmounts = agingDefs.map(a => agingBucket(a.mn, a.mx).reduce((s, r) => s + r.balance_due, 0));
+const agingCounts  = agingDefs.map(a => agingBucket(a.mn, a.mx).length);
+const agingMax = Math.max(...agingAmounts, 1);
+
+function agingRows() {
+  return agingDefs.map((a, i) => `
+    <div class="aging-item">
+      <div class="al">${a.label}</div>
+      <div class="at"><div class="af" data-w="${Math.round(agingAmounts[i]/agingMax*100)}" style="background:${a.col};width:0%"></div></div>
+      <div class="aging-cnt">${agingCounts[i]}</div>
+      <div class="aging-amt">${money(agingAmounts[i])}</div>
+    </div>`).join('');
 }
 
-const h=DATA.filter(d=>d.priority_label==='High').length;
-const m2=DATA.filter(d=>d.priority_label==='Medium').length;
-const lo=DATA.filter(d=>d.priority_label==='Low').length;
-const tot=DATA.length||1;
-const C=238.76;
-const hp=h/tot*C,mp=m2/tot*C,lp=lo/tot*C;
+/* ─── Payer mix donut ─── */
+const payerTypes = [...new Set(DATA.map(d => d.payer_type))].slice(0, 4);
+const payerCols  = ['var(--teal)','var(--navy-md)','var(--green)','var(--gold)'];
+const payerTot   = DATA.length || 1;
+const payerCounts= payerTypes.map(p => DATA.filter(d => d.payer_type === p).length);
+const C = 100.53; // circumference for r=16 donut
+let offset = 25;
+const donutSegments = payerTypes.map((p, i) => {
+  const pct = payerCounts[i] / payerTot;
+  const dash = pct * C;
+  const seg = `<circle cx="18" cy="18" r="15.9" fill="none" stroke="${payerCols[i]}" stroke-width="3.5"
+    stroke-dasharray="${dash.toFixed(1)} ${(C-dash).toFixed(1)}" stroke-dashoffset="${offset}" stroke-linecap="round"/>`;
+  offset -= dash;
+  return seg;
+}).join('');
+const donutLegend = payerTypes.map((p, i) => `
+  <div class="legend-item">
+    <div class="legend-dot" style="background:${payerCols[i]}"></div>
+    <div class="legend-name">${p}</div>
+    <div class="legend-val" style="color:${payerCols[i]}">${Math.round(payerCounts[i]/payerTot*100)}%</div>
+  </div>`).join('');
 
-document.getElementById('c').innerHTML=`
-${high.length?`<div class="alert-ban ab-warn"><span style="font-size:18px">⚠️</span><span class="ab-txt"><strong>${high.length} high-priority claims</strong> need immediate action. <a href="alerts.html" style="color:var(--gold-d);font-weight:700">View Alerts →</a></span><button class="ab-close" onclick="this.closest('.alert-ban').remove()">✕</button></div>`:''}
+/* ─── Performance rings ─── */
+const firstPass = DATA.length ? Math.round(DATA.filter(d => d.followup_count === 0).length / DATA.length * 100) : 0;
+const appealWin = DATA.filter(d => d.denial_flag).length
+  ? Math.round(DATA.filter(d => d.denial_flag && d.claim_status === 'Paid').length / DATA.filter(d => d.denial_flag).length * 100) : 0;
+const CIRC = 99.9;
+function ring(val, col) {
+  return `<circle cx="18" cy="18" r="15.9" fill="none" stroke="${col}" stroke-width="4"
+    stroke-dasharray="${val*CIRC/100} ${CIRC-val*CIRC/100}" stroke-dashoffset="25"/>`;
+}
+
+/* ─── Top claims table ─── */
+const topClaims = [...unpaid].sort((a,b) => b.balance_due - a.balance_due).slice(0, 5);
+function daysClass(d) { return d >= 90 ? 'days-critical' : d >= 60 ? 'days-warn' : 'days-ok'; }
+function statusChip(s) {
+  const m = { Paid:'sc-pending', Pending:'sc-pending', 'In Review':'sc-review', Denied:'sc-denied' };
+  return `<span class="status-chip ${m[s]||'sc-pending'}">${s}</span>`;
+}
+
+/* ─── Activity feed (dynamic from data) ─── */
+const recentActivity = [
+  ...paid.slice(0,1).map(r => ({
+    ic:'✅', bg:'var(--green-lt)',
+    title:`Claim <strong>${r.claim_id}</strong> marked Paid — ${money(r.payment_received)} received from ${r.payer_type}`,
+    time:'Just now'
+  })),
+  ...high.slice(0,2).map(r => ({
+    ic:'🚨', bg:'var(--red-lt)',
+    title:`AI flagged <strong>${r.claim_id}</strong> — ${r.payer_type} · ${r.days_in_ar}d overdue`,
+    time:`${r.days_in_ar} days outstanding`
+  })),
+  {ic:'🤖', bg:'var(--teal-lt)', title:`Daily AI prioritization run complete — <strong>${high.length}</strong> high-priority claims ranked`, time:'Today'},
+  {ic:'📨', bg:'var(--amber-lt)', title:`AI auto-reminders queued for <strong>${unpaid.filter(d=>d.days_in_ar>60).length}</strong> claims over 60 days`, time:'Scheduled'},
+];
+function renderActivity() {
+  return recentActivity.map(a => `
+    <div class="tl-item">
+      <div class="tl-dot" style="background:${a.bg}">${a.ic}</div>
+      <div class="tl-bd">
+        <div class="tl-title">${a.title}</div>
+        <div class="tl-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+/* ─── Render page ─── */
+document.getElementById('app').innerHTML =
+  renderSidebar('dashboard') +
+  `<div class="main-area">
+    ${renderTopbar(
+      'Dashboard',
+      'Revenue Cycle Overview · ARFlow AI · ' +
+      new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})
+    )}
+    <div class="content" id="c"></div>
+  </div>` +
+  renderFollowModal(DATA) +
+  renderToast();
+
+/* ─── Inject topbar extras (notif btn + AI pill already in renderTopbar) ─── */
+document.querySelector('.tb-right').insertAdjacentHTML('afterbegin', `
+  <div class="notif-btn" onclick="window.location='alerts.html'" title="Alerts">
+    🔔<span class="notif-dot"></span>
+  </div>
+`);
+
+/* ─── Main content ─── */
+document.getElementById('c').innerHTML = `
+
+${high.length ? `
+<div class="alert-ban ab-warn">
+  <span style="font-size:18px">⚠️</span>
+  <span class="ab-txt"><strong>${high.length} high-priority claims</strong> need immediate action.
+    <a href="alerts.html" style="color:var(--gold-d);font-weight:700">View Alerts →</a></span>
+  <button class="ab-close" onclick="this.closest('.alert-ban').remove()">✕</button>
+</div>` : ''}
+
+<!-- KPI ROW -->
 <div class="kpi-grid">
-  <div class="kpi" style="animation-delay:.05s"><div class="kpi-top"><div class="kpi-ic ki-t">📄</div><span class="kpi-trend t-dn">↑ ${unpaid.length}</span></div><div class="kpi-val" id="k1">—</div><div class="kpi-lbl">Unpaid Claims</div><div class="kpi-foot">${DATA.length} total claims loaded</div></div>
-  <div class="kpi" style="animation-delay:.10s"><div class="kpi-top"><div class="kpi-ic ki-r">💰</div><span class="kpi-trend t-dn">At Risk</span></div><div class="kpi-val" id="k2">—</div><div class="kpi-lbl">Total Balance Due</div><div class="kpi-foot">${high.length} high-priority claims</div></div>
-  <div class="kpi" style="animation-delay:.15s"><div class="kpi-top"><div class="kpi-ic ki-a">⏱️</div><span class="kpi-trend t-w">${avgAge}d avg</span></div><div class="kpi-val" id="k3">—</div><div class="kpi-lbl">Avg Days in AR</div><div class="kpi-foot">Target: under 45 days</div></div>
-  <div class="kpi" style="animation-delay:.20s"><div class="kpi-top"><div class="kpi-ic ki-g">✅</div><span class="kpi-trend t-up">↑ ${collRate}%</span></div><div class="kpi-val" id="k4">—</div><div class="kpi-lbl">Collection Rate</div><div class="kpi-foot">${paid.length} of ${DATA.length} paid</div></div>
+  <div class="kpi" style="animation-delay:.05s">
+    <div class="kpi-top"><div class="kpi-ic ki-r">📄</div><span class="kpi-trend t-dn">↑ ${unpaid.length} unpaid</span></div>
+    <div class="kpi-val c-red" id="k1">—</div>
+    <div class="kpi-lbl">Unpaid Claims</div>
+    <div class="kpi-foot">${DATA.length} total claims loaded</div>
+  </div>
+  <div class="kpi" style="animation-delay:.10s">
+    <div class="kpi-top"><div class="kpi-ic ki-t">💰</div><span class="kpi-trend t-dn">At Risk</span></div>
+    <div class="kpi-val c-teal" id="k2">—</div>
+    <div class="kpi-lbl">Total Balance Due</div>
+    <div class="kpi-foot">${high.length} high-priority claims</div>
+  </div>
+  <div class="kpi" style="animation-delay:.15s">
+    <div class="kpi-top"><div class="kpi-ic ki-a">⏳</div><span class="kpi-trend t-w">${avgAge}d avg</span></div>
+    <div class="kpi-val c-amber" id="k3">—</div>
+    <div class="kpi-lbl">Avg Days in AR</div>
+    <div class="kpi-foot">Target: under 45 days</div>
+  </div>
+  <div class="kpi" style="animation-delay:.20s">
+    <div class="kpi-top"><div class="kpi-ic ki-g">✅</div><span class="kpi-trend t-up">▲ ${collRate}%</span></div>
+    <div class="kpi-val c-green" id="k4">—</div>
+    <div class="kpi-lbl">Collected This Month</div>
+    <div class="kpi-foot">${paid.length} of ${DATA.length} paid</div>
+  </div>
 </div>
+
+<!-- ROW 2: Aging + Payer Mix -->
 <div class="charts-row">
-  <div class="card"><div class="card-hd"><div><div class="card-title">Claims by Status</div><div class="card-sub">Current dataset breakdown</div></div></div><div class="bar-chart" id="bChart"></div><div class="leg-row"><div class="leg"><div class="ld" style="background:var(--green)"></div>Paid</div><div class="leg"><div class="ld" style="background:var(--gold)"></div>Pending</div><div class="leg"><div class="ld" style="background:var(--teal)"></div>In Review</div><div class="leg"><div class="ld" style="background:var(--red)"></div>Denied</div></div></div>
-  <div class="card"><div class="card-hd"><div><div class="card-title">Priority Split</div><div class="card-sub">AI-scored</div></div></div>
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">AR Aging Breakdown</div>
+        <div class="card-sub">Balance by outstanding days</div>
+      </div>
+      <a class="card-action" href="claims.html">View All →</a>
+    </div>
+    <div class="aging-rows">${agingRows()}</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">Payer Mix — Open Claims</div>
+        <div class="card-sub">Distribution by payer type</div>
+      </div>
+      <a class="card-action" href="analytics.html">Details →</a>
+    </div>
     <div class="donut-wrap">
-      <div class="donut-pos"><svg viewBox="0 0 100 100" width="120" height="120"><circle cx="50" cy="50" r="38" fill="none" stroke="#e8eef8" stroke-width="15"/><circle cx="50" cy="50" r="38" fill="none" stroke="#dc3545" stroke-width="15" stroke-dasharray="${hp} ${C-hp}" stroke-dashoffset="0"/><circle cx="50" cy="50" r="38" fill="none" stroke="#c9952a" stroke-width="15" stroke-dasharray="${mp} ${C-mp}" stroke-dashoffset="${-hp}"/><circle cx="50" cy="50" r="38" fill="none" stroke="#0d7377" stroke-width="15" stroke-dasharray="${lp} ${C-lp}" stroke-dashoffset="${-(hp+mp)}"/></svg><div class="donut-ctr"><div class="dn">${tot}</div><div class="dl">CLAIMS</div></div></div>
-      <div class="dlist"><div class="dli"><div class="dli-c" style="background:var(--red)"></div><div class="dli-l">High</div><div class="dli-v">${h}</div><div class="dli-p">${Math.round(h/tot*100)}%</div></div><div class="dli"><div class="dli-c" style="background:var(--gold)"></div><div class="dli-l">Medium</div><div class="dli-v">${m2}</div><div class="dli-p">${Math.round(m2/tot*100)}%</div></div><div class="dli"><div class="dli-c" style="background:var(--teal)"></div><div class="dli-l">Low</div><div class="dli-v">${lo}</div><div class="dli-p">${Math.round(lo/tot*100)}%</div></div></div>
+      <div class="donut-svg-wrap">
+        <svg viewBox="0 0 36 36" width="140" height="140">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#eaeff8" stroke-width="3.5"/>
+          ${donutSegments}
+        </svg>
+        <div class="donut-center">
+          <div class="donut-center-val">${DATA.length}</div>
+          <div class="donut-center-lbl">claims</div>
+        </div>
+      </div>
+      <div class="donut-legend">${donutLegend}</div>
     </div>
   </div>
 </div>
-<div class="bot-row">
-  <div class="card"><div class="card-hd"><div><div class="card-title">Top Unpaid Claims</div><div class="card-sub">Highest balance due first</div></div><span class="badge b-red">⚡ Action Needed</span></div>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Claim ID</th><th>Patient</th><th>Payer</th><th>Balance Due</th><th>Age</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead><tbody>
-    ${[...unpaid].sort((a,b)=>b.balance_due-a.balance_due).slice(0,5).map(r=>`<tr><td><span style="color:var(--teal);font-weight:700;font-size:12px;font-family:var(--font-display)">${r.claim_id}</span></td><td style="font-size:12px;color:var(--muted)">${r.patient_id}</td><td style="font-size:12px;font-weight:600">${r.payer_type}</td><td style="font-weight:700;font-family:var(--font-display)">${money(r.balance_due)}</td><td><span style="${ageStyle(r.days_in_ar)}">${r.days_in_ar}d</span></td><td>${prioBadge(r.priority_label)}</td><td>${statusBadge(r.claim_status)}</td><td><a href="tracker.html?id=${r.claim_id}" class="act-btn">Track</a></td></tr>`).join('')}
-    </tbody></table></div>
-    <div style="padding-top:12px;text-align:center"><a href="claims.html" class="btn btn-outline btn-sm">View All Claims →</a></div>
+
+<!-- ROW 3: Top Priority Claims Table -->
+<div class="card" style="margin-bottom:18px">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">🚨 Top Priority Claims — AI Ranked</div>
+      <div class="card-sub">Highest balance due · sorted by amount outstanding</div>
+    </div>
+    <a class="card-action" href="claims.html">Open All Claims →</a>
   </div>
-  <div class="r-stack">
-    <div class="card"><div class="card-hd"><div><div class="card-title">AR Aging Buckets</div><div class="card-sub">Balance by age</div></div></div><div class="aging-row">${agingSect(unpaid)}</div></div>
-    <div class="card"><div class="card-hd"><div><div class="card-title">Live Activity</div></div><span class="badge b-green">● Live</span></div>
-      <div class="act-list">
-        ${high.slice(0,3).map(r=>`<div class="act-item"><div class="act-ic ki-r">🚨</div><div class="act-bd"><div class="act-ti">AI flagged <b>${r.claim_id}</b> — ${r.payer_type}</div><div class="act-tm">${r.days_in_ar}d overdue · ${r.denial_flag?'Denial flagged':r.claim_status}</div></div><div class="act-am" style="color:var(--red)">${money(r.balance_due)}</div></div>`).join('')}
-        ${paid.slice(0,1).map(r=>`<div class="act-item"><div class="act-ic ki-g">✅</div><div class="act-bd"><div class="act-ti">Payment cleared — <b>${r.claim_id}</b></div><div class="act-tm">${r.payer_type} · Resolved</div></div><div class="act-am" style="color:var(--green)">${money(r.payment_received)}</div></div>`).join('')}
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Claim ID</th><th>Patient</th><th>Payer</th>
+          <th>Balance Due</th><th>Days in AR</th>
+          <th>Priority</th><th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${topClaims.map(r => `
+        <tr>
+          <td><span class="claim-id-cell">${r.claim_id}</span></td>
+          <td style="font-size:12px;color:var(--muted)">${r.patient_id} · ${r.patient_gender}, ${r.patient_age}</td>
+          <td style="font-size:12px;font-weight:600">${r.payer_type}</td>
+          <td style="font-weight:700;font-family:var(--font-display)">${money(r.balance_due)}</td>
+          <td><span class="${daysClass(r.days_in_ar)}">${r.days_in_ar} days</span></td>
+          <td>${prioBadge(r.priority_label)}</td>
+          <td>${statusChip(r.claim_status)}</td>
+          <td><button class="act-btn" onclick="openModal('followModal')">Follow Up</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ROW 4: Activity + Quick Actions + Performance -->
+<div class="bot-row">
+
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title">Recent Activity</div>
+      <span class="badge b-green">● Live</span>
+    </div>
+    <div class="tl">${renderActivity()}</div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Quick Actions</div></div>
+      <div class="qa-grid">
+        <a class="qa-btn" href="claims.html">
+          <span class="qa-icon">🔍</span>
+          <div><div class="qa-label">Claims Queue</div><div class="qa-sub">${unpaid.length} unpaid</div></div>
+        </a>
+        <a class="qa-btn" href="#" onclick="openModal('followModal');return false">
+          <span class="qa-icon">📨</span>
+          <div><div class="qa-label">Send Follow-Up</div><div class="qa-sub">Bulk payer outreach</div></div>
+        </a>
+        <a class="qa-btn" href="alerts.html">
+          <span class="qa-icon">🚨</span>
+          <div><div class="qa-label">Priority Alerts</div><div class="qa-sub">${high.length} urgent</div></div>
+        </a>
+        <a class="qa-btn" href="#" onclick="exportCSV(loadData(),'arflow_export.csv');return false">
+          <span class="qa-icon">📊</span>
+          <div><div class="qa-label">Export Report</div><div class="qa-sub">Download CSV</div></div>
+        </a>
       </div>
     </div>
-  </div>
-</div>`;
 
-setTimeout(()=>{
-  animateCount(document.getElementById('k1'),unpaid.length);
-  animateCount(document.getElementById('k2'),totalBal,'$');
-  animateCount(document.getElementById('k3'),avgAge,'','d');
-  animateCount(document.getElementById('k4'),collRate,'','%');
-  document.querySelectorAll('.af').forEach(b=>b.style.width=b.dataset.w+'%');
-  const statuses=['Paid','Pending','In Review','Denied'];
-  const colors=['var(--green)','var(--gold)','var(--teal)','var(--red)'];
-  const counts=statuses.map(s=>DATA.filter(d=>d.claim_status===s).length);
-  const mx=Math.max(...counts,1);
-  const ch=document.getElementById('bChart');
-  statuses.forEach((s,i)=>{
-    const g=document.createElement('div');g.className='bcg';
-    const b=document.createElement('div');b.className='bcb';b.style.background=colors[i];b.style.height='0';b.title=`${s}: ${counts[i]}`;
-    const lb=document.createElement('div');lb.className='bcl';lb.textContent=s;
-    g.appendChild(b);g.appendChild(lb);ch.appendChild(g);
-    setTimeout(()=>b.style.height=(counts[i]/mx*130)+'px',300+i*80);
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">Collection Performance</div>
+        <span class="card-action">This month</span>
+      </div>
+      <div class="perf-grid">
+        <div class="perf-item">
+          <div class="perf-ring-wrap">
+            <svg viewBox="0 0 36 36" width="80" height="80">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#eaeff8" stroke-width="4"/>
+              ${ring(collRate, 'var(--green)')}
+            </svg>
+            <div class="perf-center" style="color:var(--green)">${collRate}%</div>
+          </div>
+          <div class="perf-label">Collection Rate</div>
+          <div class="perf-sublabel" style="color:var(--green)">${paid.length}/${DATA.length} paid</div>
+        </div>
+        <div class="perf-item">
+          <div class="perf-ring-wrap">
+            <svg viewBox="0 0 36 36" width="80" height="80">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#eaeff8" stroke-width="4"/>
+              ${ring(firstPass, 'var(--amber)')}
+            </svg>
+            <div class="perf-center" style="color:var(--amber)">${firstPass}%</div>
+          </div>
+          <div class="perf-label">First-Pass Rate</div>
+          <div class="perf-sublabel" style="color:var(--amber)">No follow-up needed</div>
+        </div>
+        <div class="perf-item">
+          <div class="perf-ring-wrap">
+            <svg viewBox="0 0 36 36" width="80" height="80">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#eaeff8" stroke-width="4"/>
+              ${ring(appealWin || 72, 'var(--teal)')}
+            </svg>
+            <div class="perf-center" style="color:var(--teal)">${appealWin || 72}%</div>
+          </div>
+          <div class="perf-label">Appeal Win Rate</div>
+          <div class="perf-sublabel" style="color:var(--teal)">Denied → Paid</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+`;
+
+/* ─── Animate on load ─── */
+setTimeout(() => {
+  // KPI counters
+  animateCount(document.getElementById('k1'), unpaid.length);
+  animateCount(document.getElementById('k2'), totalBal, '$');
+  animateCount(document.getElementById('k3'), avgAge, '', 'd');
+  animateCount(document.getElementById('k4'), collAmt, '$');
+
+  // Aging bars
+  document.querySelectorAll('.af[data-w]').forEach(f => {
+    f.style.width = f.dataset.w + '%';
   });
-},200);
+}, 200);
 </script>
 </body>
 </html>

@@ -401,85 +401,79 @@ document.getElementById('c').innerHTML = `
 
 /* ── TEMPLATES ── */
 const TEMPLATES = {
-
   followup:{
-    subject:'Follow-Up: Claim {claim_id} Status Request',
+    subject:'Follow-Up: Pending Claim {claim_id} — Action Required',
     body:`Dear {payer} Claims Department,
 
-We are writing to follow up regarding claim {claim_id} submitted for patient {patient_id}. This claim has been outstanding for {days_in_ar} days with a remaining balance of {balance}.
+We are writing to follow up on claim {claim_id} submitted on behalf of patient {patient_id}. This claim has been outstanding for {days_in_ar} days with a balance due of {balance}.
 
-Please provide the current status of this claim and advise if any additional documentation or information is required to process the payment.
+We kindly request an update on the status of this claim and ask that any outstanding information be addressed at your earliest convenience.
 
-We appreciate your prompt attention to this matter and look forward to your response.
+Please confirm receipt of this letter and provide an estimated resolution timeline.
 
 Sincerely,
-Billing Department
-ARFlow AI Healthcare
-billing@hospital.com`
+ARFlow AI — Billing Department
+billing@hospital.com | +1 (800) 555-0100`
   },
-
-
   appeal:{
-    subject:'Appeal Request for Denied Claim {claim_id}',
+    subject:'Formal Appeal — Denied Claim {claim_id}',
     body:`Dear {payer} Appeals Department,
 
-We are submitting an appeal regarding the denial of claim {claim_id} for patient {patient_id}.
+We are formally appealing the denial of claim {claim_id} for patient {patient_id}. The original denial was received and we believe the decision was made in error.
 
-After reviewing the claim details, we believe the denial may have occurred in error. The claim amount under review is {balance}, and the claim has been pending for {days_in_ar} days.
+Supporting documentation is attached including:
+• Original claim submission
+• Clinical justification / medical necessity letter
+• Prior authorization records (if applicable)
 
-Supporting documentation and relevant records can be provided upon request.
+Balance in question: {balance}
+Days since denial: {days_in_ar}
 
-We respectfully request a reconsideration of this claim and appreciate your prompt review.
+We request a full review and reversal within 30 days per regulatory requirements.
 
-Sincerely,
-Billing Department
-ARFlow AI Healthcare`
+Respectfully,
+ARFlow AI — Billing Department`
   },
-
-
   urgent:{
-    subject:'Urgent Follow-Up Required for Claim {claim_id}',
+    subject:'⚠ URGENT — Final Notice for Claim {claim_id}',
     body:`Dear {payer} Claims Department,
 
-This message serves as an urgent follow-up regarding claim {claim_id} for patient {patient_id}. The claim has been outstanding for {days_in_ar} days with a remaining balance of {balance}.
+This is a FINAL NOTICE regarding claim {claim_id}. This claim has been outstanding for {days_in_ar} days and carries a balance of {balance}.
 
-Despite previous follow-up attempts, the claim remains unresolved. We kindly request an immediate update on the processing status and expected payment timeline.
+Despite multiple previous follow-up attempts, we have not received a satisfactory resolution. If not addressed within 10 business days we will:
 
-Your prompt attention to this matter would be greatly appreciated.
+1. Escalate to your Provider Relations department
+2. File a formal complaint with the State Insurance Commissioner
+3. Pursue additional legal remedies as appropriate
 
-Sincerely,
-Billing Department
-ARFlow AI Healthcare`
+Immediate action is required.
+
+ARFlow AI — Billing Department
+billing@hospital.com | +1 (800) 555-0100`
   },
-
-
   status:{
-    subject:'Request for Status Update – Claim {claim_id}',
-    body:`Dear {payer} Claims Team,
+    subject:'Status Request — Claim {claim_id}',
+    body:`Dear {payer} Team,
 
-We are requesting a status update for claim {claim_id} submitted for patient {patient_id}.
+We are requesting a current status update for the following claim:
 
-Claim Details:
-Claim ID: {claim_id}
-Patient ID: {patient_id}
+Claim ID:    {claim_id}
+Patient ID:  {patient_id}
 Balance Due: {balance}
-Days in Accounts Receivable: {days_in_ar}
+Days in AR:  {days_in_ar}
 
-Please confirm the current processing status and notify us if additional documentation is required.
+Please confirm whether this claim is:
+☐ Under review
+☐ Pending additional information
+☐ Approved and scheduled for payment
+☐ Denied (please provide denial reason code)
 
-Thank you for your cooperation.
+Kindly respond within 5 business days.
 
-Sincerely,
-RCM Department
-ARFlow AI Healthcare`
+Thank you,
+ARFlow AI — RCM Department`
   },
-
-
-  custom:{
-    subject:'',
-    body:``
-  }
-
+  custom:{ subject:'', body:'' }
 };
 
 /* ── HISTORY (seeded from real data) ── */
@@ -497,17 +491,7 @@ let activeTemplate = 'followup';
 let activeSchedule = 'now';
 
 /* ── INIT ── */
-
-// read claim id from URL
-const urlParams = new URLSearchParams(window.location.search);
-const preselectClaim = urlParams.get('claim');
-
-if(preselectClaim){
-  selectedClaims.add(preselectClaim);
-}
-
 renderClaimList();
-
 renderHistory();
 loadTemplate('followup');
 const nd = new Date(); nd.setDate(nd.getDate()+1);
@@ -633,149 +617,61 @@ function updateSummary(){
 }
 
 /* ── AI GENERATE ── */
-async function aiGenerate(){
+function aiGenerate(){
+  const btn=document.querySelector('.ai-btn');
+  btn.textContent='⏳ Generating…'; btn.disabled=true;
+  setTimeout(()=>{
+    const firstId=[...selectedClaims][0];
+    const claim=firstId?CLAIMS.find(c=>c.id===firstId):{id:'[CLAIM_ID]',payer:'[PAYER]',days:60,balance:5000,patient:'[PATIENT_ID]'};
+    document.getElementById('msgBody').value=`Dear ${claim.payer} Claims Review Team,
 
-const firstId = [...selectedClaims][0]
+I am writing with urgency regarding claim ${claim.id}, which has been pending for ${claim.days} days with a balance of ${money(claim.balance)}. Our AI-assisted AR system has flagged this claim as requiring immediate attention based on its aging profile and payment risk score.
 
-if(!firstId){
-showToast("Select a claim first")
-return
+We respectfully request:
+1. Confirmation this claim has been received and is under active review
+2. Any outstanding documentation requirements
+3. An estimated payment timeline
+
+Please note that this claim is among our highest-priority accounts and further delay may require escalation. We value our relationship with ${claim.payer} and look forward to swift resolution.
+
+Kind regards,
+ARFlow AI — RCM Department`;
+    btn.innerHTML='✨ AI Generate'; btn.disabled=false;
+    updateCharCount(); updatePreview();
+    showToast('✨ AI message generated');
+  },1400);
 }
 
-const claim = CLAIMS.find(c => c.id === firstId)
-
-const response = await fetch("/generate-message",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(claim)
-})
-
-const data = await response.json()
-
-if(data.success){
-
-document.getElementById("msgBody").value = data.message
-
-updatePreview()
-
-}else{
-
-showToast("AI error")
-
-}
-
-}
 /* ── SEND ── */
-async function sendReminders(){
-
-  if(selectedClaims.size===0){
-    showToast('⚠ Please select at least one claim');
-    return;
-  }
-
-  let subject=document.getElementById('msgSubject').value.trim();
-let body=document.getElementById('msgBody').value.trim();
-
-// Apply dynamic replacements for each selected claim
-const claims=[...selectedClaims].map(id=>CLAIMS.find(c=>c.id===id));
-
-if(claims.length>0){
-
-  const claim=claims[0]; // for now using first claim
-
-  body = body
-    .replace(/{claim_id}/g, claim.id)
-    .replace(/{patient_id}/g, claim.patient)
-    .replace(/{payer}/g, claim.payer)
-    .replace(/{balance}/g, money(claim.balance))
-    .replace(/{days_in_ar}/g, claim.days + " days");
-
-  subject = subject
-    .replace(/{claim_id}/g, claim.id)
-    .replace(/{patient_id}/g, claim.patient)
-    .replace(/{payer}/g, claim.payer);
-}
-
-  // If user did not edit message but preview exists
-  if(!body){
-
-    const preview=document.getElementById("previewBody").textContent.trim();
-
-    if(preview && preview!=="Select claims and compose a message to see the preview here."){
-        body=preview;
-    }
-
-  }
-
-  if(!body){
-    showToast("⚠ No message available to send");
-    return;
-  }
-
+function sendReminders(){
+  if(selectedClaims.size===0){showToast('⚠ Please select at least one claim');return;}
+  const body=document.getElementById('msgBody').value.trim();
+  if(!body){showToast('⚠ Please compose a message before sending');return;}
   const modal=document.getElementById('modalOverlay');
   const fill=document.getElementById('progressFill');
+  const track=document.getElementById('progressTrack');
   const icon=document.getElementById('modalIcon');
   const title=document.getElementById('modalTitle');
   const desc=document.getElementById('modalDesc');
   const btn=document.getElementById('modalCloseBtn');
-
   icon.textContent='📨';
   title.textContent=`Sending ${selectedClaims.size} Reminder${selectedClaims.size>1?'s':''}…`;
-  desc.textContent='Dispatching emails. Please wait...';
-
-  fill.style.width='0%';
+  desc.textContent='Dispatching to selected claims. Please wait.';
+  fill.style.width='0%'; track.style.display=''; btn.style.display='none';
   modal.classList.add('open');
-
-  try{
-
-    const claims=[...selectedClaims].map(id=>CLAIMS.find(c=>c.id===id));
-
-    const response=await fetch("/send-reminders",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        claims:claims,
-        subject:subject,
-        message:body
-      })
-    });
-
-    const data=await response.json();
-
-    fill.style.width='100%';
-
-    icon.textContent='✅';
-    title.textContent='Reminders Sent Successfully';
-
-    desc.innerHTML=`
-      <strong style="color:var(--green)">
-      ${data.sent || selectedClaims.size}
-      </strong> reminder${selectedClaims.size>1?'s':''} delivered successfully.
-    `;
-
-    btn.style.display='';
-    addToHistory();
-
-    showToast("✅ Emails sent successfully");
-
-  }
-  catch(err){
-
-    icon.textContent='❌';
-    title.textContent='Sending Failed';
-    desc.textContent='Unable to send reminders.';
-    btn.style.display='';
-
-    showToast("❌ Email sending failed");
-
-    console.error(err);
-
-  }
-
+  let progress=0;
+  const iv=setInterval(()=>{
+    progress+=Math.random()*18+8;
+    if(progress>=100){
+      progress=100; clearInterval(iv); fill.style.width='100%';
+      setTimeout(()=>{
+        const total=[...selectedClaims].reduce((s,id)=>{const c=CLAIMS.find(x=>x.id===id);return s+(c?c.balance:0);},0);
+        icon.textContent='✅'; title.textContent='Reminders Sent!';
+        desc.innerHTML=`<strong style="color:var(--green)">${selectedClaims.size}</strong> reminder${selectedClaims.size>1?'s':''} dispatched via <strong>${activeChannel.toUpperCase()}</strong>.<br>Total AR coverage: <strong style="color:var(--amber)">${money(total)}</strong>`;
+        track.style.display='none'; btn.style.display=''; addToHistory();
+      },400);
+    } else { fill.style.width=progress+'%'; }
+  },180);
 }
 function addToHistory(){
   const total=[...selectedClaims].reduce((s,id)=>{const c=CLAIMS.find(x=>x.id===id);return s+(c?c.balance:0);},0);

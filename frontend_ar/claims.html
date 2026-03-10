@@ -1,64 +1,906 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>ARFlow AI — Claims Queue</title>
 <link rel="stylesheet" href="css/styles.css"/>
-<style>.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:15px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm);animation:fadeUp .4s ease both}.stat-ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}.stat-val{font-family:var(--font-display);font-size:20px;font-weight:800;line-height:1;color:var(--navy)}.stat-lbl{font-size:12px;color:var(--muted);margin-top:2px}</style>
+<style>
+/* ════════════════════════════════════════════
+   CLAIMS PAGE — EXTENDED STYLES
+════════════════════════════════════════════ */
+
+/* Fix: flex layout for sidebar shell */
+body { display:flex; min-height:100vh; }
+.app-layout { display:flex; width:100%; min-height:100vh; }
+.main-area  { margin-left:var(--sidebar); flex:1; display:flex; flex-direction:column; min-height:100vh; min-width:0; }
+.content    { padding:24px 28px; flex:1; min-width:0; }
+
+/* Topbar shimmer */
+.topbar { position:relative; }
+.topbar::after {
+  content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,var(--teal),var(--gold),var(--teal));
+  background-size:200% 100%; animation:shimmer 3s linear infinite;
+}
+
+/* ── Summary Bar ── */
+.summary-bar {
+  display:grid; grid-template-columns:repeat(5,1fr);
+  gap:12px; margin-bottom:20px; animation:fadeUp .4s .04s both;
+}
+.sum-card {
+  background:var(--white); border:1.5px solid var(--border);
+  border-radius:var(--r); padding:16px 18px; display:flex;
+  align-items:center; gap:12px; cursor:pointer; transition:all .2s;
+  box-shadow:var(--shadow-sm);
+}
+.sum-card:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+.sum-card.active-filter {
+  border-color:var(--teal); background:var(--teal-lt);
+  box-shadow:0 0 0 3px var(--teal-glow);
+}
+.sum-card.active-filter .sum-val { color:var(--teal); }
+.sum-icon { font-size:22px; flex-shrink:0; }
+.sum-val  { font-family:var(--font-display); font-size:22px; font-weight:800; line-height:1; }
+.sum-lbl  { font-size:11px; color:var(--muted); margin-top:3px; font-weight:500; }
+.sum-val.all    { color:var(--navy); }
+.sum-val.pend   { color:var(--amber); }
+.sum-val.paid   { color:var(--green); }
+.sum-val.denied { color:var(--red); }
+.sum-val.part   { color:var(--navy-md); }
+
+/* ── Filter Row ── */
+.filter-row {
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:18px; flex-wrap:wrap; animation:fadeUp .4s .08s both;
+}
+.search-wrap { position:relative; flex:1; min-width:220px; max-width:280px; }
+.search-icon {
+  position:absolute; left:11px; top:50%; transform:translateY(-50%);
+  color:var(--muted2); font-size:14px; pointer-events:none;
+}
+.search-input {
+  width:100%; padding:9px 12px 9px 34px; background:var(--white);
+  border:1.5px solid var(--border); border-radius:var(--r-sm);
+  color:var(--text); font-size:13px; font-family:var(--font-body);
+  outline:none; transition:border-color .2s;
+}
+.search-input:focus { border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-glow); }
+.search-input::placeholder { color:var(--muted2); }
+.fsel {
+  padding:9px 28px 9px 12px; background:var(--white);
+  border:1.5px solid var(--border); border-radius:var(--r-sm);
+  color:var(--text); font-size:12px; font-weight:600;
+  outline:none; cursor:pointer; transition:border-color .2s;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7fa3' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 9px center;
+}
+.fsel:focus,.fsel:hover { border-color:var(--teal); }
+
+.filter-tags { display:flex; gap:7px; flex-wrap:wrap; }
+.tag-chip {
+  padding:5px 13px; border-radius:20px; font-size:11px; font-weight:700;
+  cursor:pointer; border:1.5px solid transparent; transition:all .2s; user-select:none;
+}
+.tag-chip.high   { background:var(--red-lt);   color:var(--red);   border-color:var(--red-md);   }
+.tag-chip.medium { background:var(--amber-lt); color:var(--amber); border-color:var(--amber-md); }
+.tag-chip.low    { background:var(--green-lt); color:var(--green); border-color:var(--green-md); }
+.tag-chip.chip-active { filter:brightness(.88); transform:scale(1.06); box-shadow:0 2px 8px rgba(0,0,0,.12); }
+.tag-chip:hover  { filter:brightness(.94); }
+
+.results-info { font-size:12px; color:var(--muted); white-space:nowrap; margin-left:auto; }
+.results-info span { color:var(--teal); font-weight:700; }
+
+/* ── Table Card ── */
+.table-card {
+  background:var(--white); border:1px solid var(--border);
+  border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-sm);
+  animation:fadeUp .4s .12s both;
+}
+.table-card-hd {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; border-bottom:1px solid var(--border); background:var(--white);
+}
+.table-card-title { font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--navy); }
+.table-card-sub   { font-size:11px; color:var(--muted); margin-top:2px; }
+.table-card-actions { display:flex; gap:8px; }
+
+/* Table — sticky header fixed inside scroll container */
+.claims-tbl-wrap {
+  overflow-x:auto;
+  overflow-y:auto;
+  max-height:calc(100vh - 300px);
+}
+.claims-tbl { width:100%; border-collapse:collapse; min-width:1100px; }
+
+@keyframes rowIn { from{opacity:0;transform:translateX(-5px)} to{opacity:1;transform:translateX(0)} }
+
+.claims-tbl thead { position:sticky; top:0; z-index:5; }
+.claims-tbl th {
+  background:var(--bg); font-size:10px; letter-spacing:.7px;
+  text-transform:uppercase; color:var(--muted); font-weight:700;
+  padding:10px 13px; text-align:left; border-bottom:1.5px solid var(--border);
+  white-space:nowrap; cursor:pointer; user-select:none; transition:color .15s;
+}
+.claims-tbl th:hover { color:var(--teal); }
+.claims-tbl th .sa  { margin-left:4px; opacity:.3; font-size:11px; }
+.claims-tbl th.sorted .sa { opacity:1; color:var(--teal); }
+.claims-tbl td {
+  padding:11px 13px; font-size:13px; border-bottom:1px solid var(--border);
+  white-space:nowrap; color:var(--text); vertical-align:middle;
+}
+.claims-tbl tr:last-child td { border-bottom:none; }
+.claims-tbl tbody tr { cursor:pointer; transition:background .1s; animation:rowIn .2s both; }
+.claims-tbl tbody tr:hover td { background:#f0f8f8; }
+
+/* Cell helpers */
+.cid-cell { color:var(--teal); font-weight:700; font-family:var(--font-display); font-size:13px; }
+.pt-sub   { color:var(--muted2); font-size:11px; margin-top:2px; }
+.py-sub   { color:var(--muted2); font-size:11px; margin-top:1px; }
+
+/* Status chips */
+.sc { display:inline-block; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:600; }
+.sc.Pending   { background:var(--amber-lt); color:var(--amber); }
+.sc.Paid      { background:var(--green-lt); color:var(--green); }
+.sc.Denied    { background:var(--red-lt);   color:var(--red);   }
+.sc.Partial   { background:var(--navy-lt);  color:var(--navy-md); }
+.sc.in-review { background:var(--teal-lt);  color:var(--teal);  }
+
+/* Days chips */
+.dc { display:inline-block; padding:2px 9px; border-radius:5px; font-size:12px; font-weight:600; }
+.dc.low      { color:var(--green);  background:var(--green-lt); }
+.dc.medium   { color:var(--amber);  background:var(--amber-lt); }
+.dc.high     { color:#c2410c;       background:#fff7ed;         }
+.dc.critical { color:var(--red);    background:var(--red-lt);   }
+
+/* Denial badge */
+.denial-cell { display:flex; align-items:center; gap:5px; }
+.denial-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.denial-dot.yes { background:var(--red);    box-shadow:0 0 5px rgba(220,53,69,.4); }
+.denial-dot.no  { background:var(--border2); }
+
+/* Balance colors */
+.bal-due   { font-weight:700; color:var(--amber); font-family:var(--font-display); }
+.bal-clear { font-weight:700; color:var(--green); font-family:var(--font-display); }
+
+/* ── Pagination ── */
+.pag-row {
+  display:flex; align-items:center; padding:13px 18px;
+  border-top:1px solid var(--border); background:var(--bg); gap:8px;
+}
+.pag-row-info { font-size:12px; color:var(--muted); flex:1; }
+.pag-row-info span { color:var(--navy); font-weight:600; }
+.pag-row-btns { display:flex; gap:4px; }
+.pg-btn {
+  width:32px; height:32px; border-radius:var(--r-xs);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; cursor:pointer; font-weight:600;
+  background:var(--white); border:1.5px solid var(--border);
+  color:var(--muted); transition:all .15s; font-family:var(--font-body);
+}
+.pg-btn:hover    { border-color:var(--teal); color:var(--teal); background:var(--teal-lt); }
+.pg-btn.active   { background:var(--teal); border-color:var(--teal); color:#fff; }
+.pg-btn:disabled { opacity:.3; cursor:not-allowed; pointer-events:none; }
+
+/* ── Empty State ── */
+.empty-st { text-align:center; padding:64px 20px; }
+.empty-st .ei { font-size:48px; margin-bottom:12px; opacity:.35; }
+.empty-st .et { font-family:var(--font-display); font-size:16px; font-weight:700; color:var(--muted); margin-bottom:6px; }
+.empty-st .es { font-size:13px; color:var(--muted2); }
+
+/* ── Detail Drawer ── */
+.drawer-overlay {
+  position:fixed; inset:0; background:rgba(15,31,61,.42);
+  z-index:200; opacity:0; pointer-events:none;
+  transition:opacity .25s; backdrop-filter:blur(3px);
+}
+.drawer-overlay.open { opacity:1; pointer-events:all; }
+.drawer {
+  position:fixed; right:0; top:0; bottom:0; width:464px;
+  background:var(--white); border-left:1.5px solid var(--border);
+  z-index:201; transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  overflow-y:auto; box-shadow:var(--shadow-lg);
+}
+.drawer.open { transform:translateX(0); }
+.drawer-inner { padding:28px; }
+.drawer-hd { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+.drawer-cid { font-family:var(--font-display); font-size:26px; font-weight:800; color:var(--teal); }
+.drawer-svc { font-size:13px; color:var(--muted); margin-top:3px; }
+.drawer-close {
+  width:32px; height:32px; border-radius:var(--r-xs);
+  background:var(--bg); border:1.5px solid var(--border);
+  cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;
+  color:var(--muted); transition:all .2s; flex-shrink:0;
+}
+.drawer-close:hover { border-color:var(--red); color:var(--red); }
+.drawer-pills { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:22px; margin-top:10px; }
+.drawer-sec { margin-bottom:22px; }
+.drawer-sec-ttl {
+  font-size:10px; letter-spacing:1.2px; text-transform:uppercase;
+  color:var(--muted); font-weight:700; margin-bottom:12px;
+  padding-bottom:8px; border-bottom:1.5px solid var(--border);
+}
+.drawer-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.df label { font-size:11px; color:var(--muted); display:block; margin-bottom:3px; font-weight:600; }
+.df .dv   { font-size:14px; font-weight:500; color:var(--text); }
+.df .dv.money { color:var(--teal); font-family:var(--font-display); font-size:17px; font-weight:800; }
+.coll-bar-wrap { margin-top:12px; }
+.coll-bar-top { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:5px; }
+.coll-bar-top span:last-child { color:var(--teal); font-weight:700; }
+.coll-bar  { height:7px; background:var(--bg2); border-radius:4px; overflow:hidden; }
+.coll-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--teal),var(--green)); transition:width 1s ease; }
+
+/* Timeline */
+.tl-wrap { display:flex; flex-direction:column; gap:0; }
+.tl-row  { display:flex; gap:12px; }
+.tl-spine { display:flex; flex-direction:column; align-items:center; }
+.tl-dot-sm { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:3px; }
+.tl-line-sm { width:2px; flex:1; background:var(--border); min-height:18px; margin-top:3px; }
+.tl-row:last-child .tl-line-sm { display:none; }
+.tl-body { padding-bottom:14px; }
+.tl-msg  { font-size:12px; color:var(--text); line-height:1.5; }
+.tl-ts   { font-size:11px; color:var(--muted2); margin-top:2px; }
+
+/* Drawer actions */
+.d-actions { display:flex; flex-direction:column; gap:8px; }
+.dab { width:100%; padding:11px; border-radius:var(--r-sm); font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-body); transition:all .2s; border:none; }
+.dab.primary { background:linear-gradient(135deg,var(--teal),var(--teal-d)); color:#fff; box-shadow:var(--shadow-teal); }
+.dab.primary:hover { transform:translateY(-1px); }
+.dab.secondary { background:var(--bg); color:var(--slate); border:1.5px solid var(--border); }
+.dab.secondary:hover { border-color:var(--teal); color:var(--teal); background:var(--teal-lt); }
+
+/* Notif btn */
+.notif-btn { position:relative; width:36px; height:36px; border-radius:var(--r-sm); background:var(--bg); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; text-decoration:none; transition:border-color .2s; }
+.notif-btn:hover { border-color:var(--teal); }
+.notif-dot { position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--red); border:2px solid var(--white); }
+
+@keyframes fadeUp  { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+@keyframes spin    { to{transform:rotate(360deg)} }
+.spinning { animation:spin 1s linear infinite }
+</style>
 </head>
 <body>
+
 <div class="app-layout" id="app"></div>
 <script src="js/shared.js"></script>
 <script>
+/* ═══════════════════════════════════
+   CLAIMS QUEUE — Main Controller
+   Uses ONLY real data from loadData()
+   No fake padding.
+═══════════════════════════════════ */
 requireAuth();
-let DATA=loadData();
-let filters={priority:'All',status:'All',payer:'All',dept:'All'};
-let searchQ='',currentPage=1;
-const PER=15;
-document.getElementById('app').innerHTML=renderSidebar('claims')+`<div class="main-area">${renderTopbar('Claims Queue','All claims · AI-ranked by priority')}<div class="content" id="c"></div></div>`+renderFollowModal(DATA)+renderToast();
-window.onGlobalSearch=q=>{searchQ=q.toLowerCase();currentPage=1;renderTable()};
 
-function renderPage(){
-  const payers=[...new Set(DATA.map(d=>d.payer_type))].sort();
-  const depts=[...new Set(DATA.map(d=>d.department))].sort();
-  const high=DATA.filter(d=>d.priority_label==='High').length;
-  const totalBal=DATA.reduce((s,d)=>s+(d.balance_due||0),0);
-  document.getElementById('c').innerHTML=`
-    <div class="stat-grid">
-      <div class="stat" style="animation-delay:.05s"><div class="stat-ic ki-t">📄</div><div><div class="stat-val" id="s1">—</div><div class="stat-lbl">Total Claims</div></div></div>
-      <div class="stat" style="animation-delay:.10s"><div class="stat-ic ki-r">💰</div><div><div class="stat-val" id="s2">—</div><div class="stat-lbl">Total Balance Due</div></div></div>
-      <div class="stat" style="animation-delay:.15s"><div class="stat-ic ki-a">🚨</div><div><div class="stat-val" id="s3">—</div><div class="stat-lbl">High Priority</div></div></div>
-    </div>
-    <div class="card">
-      <div class="card-hd"><div><div class="card-title">All Claims</div><div class="card-sub" id="rSub">Loading…</div></div><button class="btn btn-primary btn-sm" onclick="openModal('followModal')">+ Bulk Follow-Up</button></div>
-      <div class="filter-bar">
-        <select class="fsel" onchange="filters.priority=this.value;currentPage=1;renderTable()"><option value="All">All Priorities</option><option value="High">🔴 High</option><option value="Medium">🟡 Medium</option><option value="Low">🟢 Low</option></select>
-        <select class="fsel" onchange="filters.status=this.value;currentPage=1;renderTable()"><option value="All">All Statuses</option><option value="Pending">Pending</option><option value="In Review">In Review</option><option value="Denied">Denied</option><option value="Paid">Paid</option></select>
-        <select class="fsel" onchange="filters.payer=this.value;currentPage=1;renderTable()">${['All Payers',...payers].map((p,i)=>`<option value="${i===0?'All':p}">${p}</option>`).join('')}</select>
-        <select class="fsel" onchange="filters.dept=this.value;currentPage=1;renderTable()">${['All Depts',...depts].map((d,i)=>`<option value="${i===0?'All':d}">${d}</option>`).join('')}</select>
-        <div class="search-box" style="flex:1;max-width:220px"><span style="color:var(--muted2)">🔍</span><input type="text" placeholder="Search claims…" oninput="searchQ=this.value.toLowerCase();currentPage=1;renderTable()"/></div>
-        <button class="btn btn-outline btn-sm" onclick="exportCSV(DATA,'arflow_claims.csv')">⬇ Export</button>
+// ── Load only real data ──
+const ALL_DATA = loadData();
+
+// ── State ──
+let filtered    = [...ALL_DATA];
+let currentPage = 1;
+const PER       = 15;
+let sortField   = 'risk';
+let sortDir     = 1;
+let activeStatus = 'All';
+let activePri    = new Set();
+
+// ── Build shell ──
+document.getElementById('app').innerHTML =
+  renderSidebar('claims') +
+  `<div class="main-area">
+    ${renderTopbar('Claims Queue', 'AI-ranked by risk · Real-time AR intelligence')}
+    <div class="content" id="pageContent"></div>
+  </div>` +
+  renderFollowModal(ALL_DATA) +
+  renderToast();
+
+// Inject notif btn
+document.querySelector('.tb-right').insertAdjacentHTML('afterbegin',
+  `<a class="notif-btn" href="alerts.html">🔔<span class="notif-dot"></span></a>`
+);
+
+window.onGlobalSearch = q => {
+  const si = document.getElementById('searchInput');
+  if (si) si.value = q;
+  applyFilters();
+};
+
+// ── Render page ──
+function renderPage() {
+  document.getElementById('pageContent').innerHTML = `
+
+    <!-- SUMMARY BAR -->
+    <div class="summary-bar" id="sumBar">
+      <div class="sum-card active-filter" onclick="setStatus('All')">
+        <div class="sum-icon">📋</div>
+        <div><div class="sum-val all" id="s-all">—</div><div class="sum-lbl">All Claims</div></div>
       </div>
-      <div id="tWrap"></div>
-    </div>`;
-  setTimeout(()=>{animateCount(document.getElementById('s1'),DATA.length);animateCount(document.getElementById('s2'),totalBal,'$');animateCount(document.getElementById('s3'),high)},150);
+      <div class="sum-card" onclick="setStatus('Pending')">
+        <div class="sum-icon">⏳</div>
+        <div><div class="sum-val pend" id="s-pend">—</div><div class="sum-lbl">Pending</div></div>
+      </div>
+      <div class="sum-card" onclick="setStatus('Paid')">
+        <div class="sum-icon">✅</div>
+        <div><div class="sum-val paid" id="s-paid">—</div><div class="sum-lbl">Paid</div></div>
+      </div>
+      <div class="sum-card" onclick="setStatus('Denied')">
+        <div class="sum-icon">❌</div>
+        <div><div class="sum-val denied" id="s-denied">—</div><div class="sum-lbl">Denied</div></div>
+      </div>
+      <div class="sum-card" onclick="setStatus('Partial')">
+        <div class="sum-icon">🔀</div>
+        <div><div class="sum-val part" id="s-part">—</div><div class="sum-lbl">Partial</div></div>
+      </div>
+    </div>
+
+    <!-- FILTER ROW -->
+    <div class="filter-row">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" type="text"
+          placeholder="Search ID, patient, city, service…" oninput="applyFilters()"/>
+      </div>
+      <select class="fsel" id="fPayer" onchange="applyFilters()">
+        <option value="">All Payers</option>
+        <option>Private Insurance</option><option>Government Medicare</option>
+        <option>Government Medicaid</option><option>Employer Health Plan</option>
+        <option>Self Pay</option><option>Military Health</option><option>Charity Program</option>
+      </select>
+      <select class="fsel" id="fDept" onchange="applyFilters()">
+        <option value="">All Departments</option>
+        <option>Cardiology</option><option>Orthopedics</option><option>Neurology</option>
+        <option>Dermatology</option><option>Oncology</option><option>Pediatrics</option>
+        <option>General Medicine</option><option>Urology</option><option>Gynecology</option>
+        <option>ENT</option><option>Pathology</option><option>Radiology</option>
+      </select>
+      <select class="fsel" id="fAging" onchange="applyFilters()">
+        <option value="">All Ages</option>
+        <option value="0-30">0–30 days</option>
+        <option value="31-60">31–60 days</option>
+        <option value="61-90">61–90 days</option>
+        <option value="91-120">91–120 days</option>
+        <option value="120+">120+ days</option>
+      </select>
+      <div class="filter-tags">
+        <span class="tag-chip high"   id="tc-High"   onclick="togglePri('High')">● High</span>
+        <span class="tag-chip medium" id="tc-Medium" onclick="togglePri('Medium')">● Medium</span>
+        <span class="tag-chip low"    id="tc-Low"    onclick="togglePri('Low')">● Low</span>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="exportCSV(filtered,'arflow_claims.csv')">⬇ Export</button>
+      <div class="results-info">Showing <span id="rCount">—</span> claims</div>
+    </div>
+    <!--- AI Message Generator (for demo) -->
+    <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:20px">
+
+  <span style="font-weight:600;font-size:14px">
+    Send reminders to
+  </span>
+
+  <input 
+    type="number"
+    id="sendCount"
+    min="1"
+    value="1"
+    style="
+      width:70px;
+      padding:8px;
+      text-align:center;
+      border:1.5px solid #d0d7e2;
+      border-radius:8px;
+      font-size:14px;
+      outline:none;
+    "
+  />
+
+  <span style="font-size:14px;color:#666">
+    claims
+  </span>
+
+  <button 
+    onclick="generateMessages()"
+    style="
+      padding:8px 14px;
+      border:none;
+      border-radius:8px;
+      background:#0d7377;
+      color:white;
+      font-weight:600;
+      cursor:pointer;
+    "
+  >
+    🤖 Generate
+  </button>
+
+</div>
+
+</div>
+    <!-- TABLE CARD -->
+    <div class="table-card">
+      <div class="table-card-hd">
+        <div>
+          <div class="table-card-title">All Claims</div>
+          <div class="table-card-sub" id="tblSub">Loading…</div>
+        </div>
+        <div class="table-card-actions">
+          <button class="btn btn-outline btn-sm" onclick="openModal('followModal')">✉ Bulk Follow-Up</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('followModal')">+ New Claim</button>
+        </div>
+      </div>
+      <div class="claims-tbl-wrap">
+        <table class="claims-tbl">
+          <thead>
+            <tr>
+              <th style="width:42px">#</th>
+              <th onclick="doSort('claim_id')">Claim ID <span class="sa" id="sa-claim_id">↕</span></th>
+              <th onclick="doSort('patient_id')">Patient <span class="sa" id="sa-patient_id">↕</span></th>
+              <th onclick="doSort('service_type')">Service <span class="sa" id="sa-service_type">↕</span></th>
+              <th onclick="doSort('department')">Dept <span class="sa" id="sa-department">↕</span></th>
+              <th onclick="doSort('payer_type')">Payer <span class="sa" id="sa-payer_type">↕</span></th>
+              <th onclick="doSort('claim_amount')">Claim Amt <span class="sa" id="sa-claim_amount">↕</span></th>
+              <th onclick="doSort('balance_due')">Balance <span class="sa" id="sa-balance_due">↕</span></th>
+              <th onclick="doSort('days_in_ar')">Days AR <span class="sa" id="sa-days_in_ar">↕</span></th>
+              <th onclick="doSort('followup_count')" style="text-align:center">F/U <span class="sa" id="sa-followup_count">↕</span></th>
+              <th style="text-align:center">Denial</th>
+              <th onclick="doSort('priority_label')">Priority <span class="sa" id="sa-priority_label">↕</span></th>
+              <th onclick="doSort('claim_status')">Status <span class="sa" id="sa-claim_status">↕</span></th>
+              <th>Risk</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tBody"></tbody>
+        </table>
+      </div>
+      <div class="pag-row">
+        <div class="pag-row-info" id="pagInfo"></div>
+        <div class="pag-row-btns" id="pagBtns"></div>
+      </div>
+    </div>
+  `;
+
+  // Animate summary counts from real data only
+  setTimeout(() => {
+    animateCount(document.getElementById('s-all'),    ALL_DATA.length);
+    animateCount(document.getElementById('s-pend'),   ALL_DATA.filter(r=>r.claim_status==='Pending').length);
+    animateCount(document.getElementById('s-paid'),   ALL_DATA.filter(r=>r.claim_status==='Paid').length);
+    animateCount(document.getElementById('s-denied'), ALL_DATA.filter(r=>r.claim_status==='Denied').length);
+    animateCount(document.getElementById('s-part'),   ALL_DATA.filter(r=>r.claim_status==='Partial').length);
+  }, 120);
+
+  applyFilters();
+}
+
+// ── Helpers ──
+function daysClass(d) { return d<=30?'low':d<=60?'medium':d<=90?'high':'critical'; }
+function stsClass(s)  {
+  const m = {Pending:'Pending',Paid:'Paid',Denied:'Denied',Partial:'Partial','In Review':'in-review'};
+  return m[s] || 'Pending';
+}
+
+// ── Filter logic ──
+function setStatus(s) {
+  activeStatus = s;
+  document.querySelectorAll('.sum-card').forEach((c,i) => {
+    c.classList.toggle('active-filter', ['All','Pending','Paid','Denied','Partial'][i] === s);
+  });
+  currentPage = 1;
+  applyFilters();
+}
+
+function togglePri(p) {
+  activePri.has(p) ? activePri.delete(p) : activePri.add(p);
+  document.getElementById(`tc-${p}`)?.classList.toggle('chip-active', activePri.has(p));
+  currentPage = 1;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q     = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const payer = document.getElementById('fPayer')?.value || '';
+  const dept  = document.getElementById('fDept')?.value  || '';
+  const aging = document.getElementById('fAging')?.value || '';
+
+  filtered = ALL_DATA.filter(r => {
+    if (activeStatus !== 'All' && r.claim_status !== activeStatus) return false;
+    if (activePri.size > 0 && !activePri.has(r.priority_label))  return false;
+    if (payer && r.payer_type !== payer) return false;
+    if (dept  && r.department !== dept)  return false;
+    if (aging) {
+      const d = r.days_in_ar;
+      if (aging==='0-30'   && (d<0||d>30))    return false;
+      if (aging==='31-60'  && (d<31||d>60))   return false;
+      if (aging==='61-90'  && (d<61||d>90))   return false;
+      if (aging==='91-120' && (d<91||d>120))  return false;
+      if (aging==='120+'   && d<=120)          return false;
+    }
+    if (q) {
+      const hay = `${r.claim_id} ${r.patient_id} ${r.patient_city||''} ${r.service_type||''} ${r.department||''} ${r.payer_type} ${r.insurance_company||''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  // Sort
+filtered.sort((a,b) => {
+
+  if(sortField === "risk"){
+      return sortDir * (riskScore(b) - riskScore(a));
+  }
+
+  const va = a[sortField];
+  const vb = b[sortField];
+
+  if (typeof va === "number") {
+      return sortDir * (va - vb);
+  }
+
+  return sortDir * String(va || '').localeCompare(String(vb || ''));
+});
+
+  currentPage = 1;
+  const rc = document.getElementById('rCount');
+  if (rc) rc.textContent = filtered.length.toLocaleString();
+  const ts = document.getElementById('tblSub');
+  if (ts) ts.textContent = `${filtered.length.toLocaleString()} claim${filtered.length!==1?'s':''} · AI-ranked by risk`;
   renderTable();
+  renderPagination();
 }
 
-function getFiltered(){return DATA.filter(r=>(filters.priority==='All'||r.priority_label===filters.priority)&&(filters.status==='All'||r.claim_status===filters.status)&&(filters.payer==='All'||r.payer_type===filters.payer)&&(filters.dept==='All'||r.department===filters.dept)&&(!searchQ||JSON.stringify(r).toLowerCase().includes(searchQ))).sort((a,b)=>({High:3,Medium:2,Low:1}[b.priority_label]||0)-({High:3,Medium:2,Low:1}[a.priority_label]||0)||b.balance_due-a.balance_due);}
-
-function renderTable(){
-  const rows=getFiltered();const start=(currentPage-1)*PER;const page=rows.slice(start,start+PER);
-  const sub=document.getElementById('rSub');if(sub)sub.textContent=`${rows.length} results · AI-ranked`;
-  const wrap=document.getElementById('tWrap');if(!wrap)return;
-  if(!page.length){wrap.innerHTML=`<div class="empty"><div class="empty-ic">🔍</div><div class="empty-ti">No claims found</div><p>Adjust your filters</p></div>`;return;}
-  wrap.innerHTML=`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>Claim ID</th><th>Patient</th><th>City</th><th>Service</th><th>Dept</th><th>Payer</th><th>Claim Amt</th><th>Balance Due</th><th>Days AR</th><th>Follow-Ups</th><th>Denial</th><th>Priority</th><th>Status</th><th>Risk</th><th>Actions</th></tr></thead><tbody>
-  ${page.map((r,i)=>{const rank=start+i+1;const rc=rank===1?'r1':rank===2?'r2':rank===3?'r3':'ro';const sc=riskScore(r);const scC=sc>=75?'var(--red)':sc>=50?'var(--amber)':'var(--green)';
-  return `<tr><td><div class="rank-num ${rc}">${rank}</div></td><td><span style="color:var(--teal);font-weight:700;font-size:12px;font-family:var(--font-display)">${r.claim_id}</span></td><td style="font-size:12px;color:var(--muted)">${r.patient_id}<br/><span style="font-size:10px">${r.patient_gender},${r.patient_age}y</span></td><td style="font-size:12px;color:var(--muted)">${r.patient_city||'—'}</td><td><span class="badge b-gray" style="font-size:10px">${r.service_type}</span></td><td style="font-size:12px;color:var(--muted)">${r.department}</td><td style="font-size:12px;font-weight:600">${r.payer_type}</td><td style="font-weight:600;font-family:var(--font-display)">${money(r.claim_amount)}</td><td style="font-weight:700;font-family:var(--font-display);color:${r.balance_due>10000?'var(--red)':'var(--navy)'}">${money(r.balance_due)}</td><td><span style="${ageStyle(r.days_in_ar)}">${r.days_in_ar}d</span></td><td style="text-align:center;font-weight:600">${r.followup_count}</td><td style="text-align:center">${r.denial_flag?'<span class="badge b-red" style="font-size:10px">Yes</span>':'<span class="badge b-gray" style="font-size:10px">No</span>'}</td><td>${prioBadge(r.priority_label)}</td><td>${statusBadge(r.claim_status)}</td><td><div class="risk-wrap"><div class="risk-bar"><div class="risk-fill" style="width:${sc}%;background:${scC}"></div></div><span class="risk-val" style="color:${scC}">${sc}</span></div></td><td style="display:flex;gap:5px"><a href="tracker.html?id=${r.claim_id}" class="act-btn">Track</a><button class="act-btn" onclick="showToast('Follow-up sent for ${r.claim_id}!')">FU</button></td></tr>`;
-  }).join('')}</tbody></table></div>${renderPag(rows.length)}`;
+function doSort(field) {
+  if (sortField===field) sortDir*=-1; else { sortField=field; sortDir=1; }
+  document.querySelectorAll('.sa').forEach(el => el.textContent='↕');
+  document.querySelectorAll('.claims-tbl th').forEach(el => el.classList.remove('sorted'));
+  const arrow = document.getElementById(`sa-${field}`);
+  if (arrow) { arrow.textContent=sortDir===1?'↑':'↓'; arrow.parentElement.classList.add('sorted'); }
+  applyFilters();
 }
-function renderPag(total){const pages=Math.ceil(total/PER);if(pages<=1)return'';const s=(currentPage-1)*PER+1,e=Math.min(currentPage*PER,total);let b=`<button class="pb" ${currentPage===1?'disabled':''} onclick="currentPage--;renderTable()">← Prev</button>`;for(let p=1;p<=pages;p++){if(p===1||p===pages||Math.abs(p-currentPage)<=1)b+=`<button class="pb ${p===currentPage?'on':''}" onclick="currentPage=${p};renderTable()">${p}</button>`;else if(Math.abs(p-currentPage)===2)b+=`<span style="padding:5px 3px;color:var(--muted2)">…</span>`;}b+=`<button class="pb" ${currentPage===pages?'disabled':''} onclick="currentPage++;renderTable()">Next →</button>`;return`<div class="pag"><div class="pag-info">Showing ${s}–${e} of ${total}</div><div class="pag-btns">${b}</div></div>`;}
+
+// ── Render table ──
+function renderTable() {
+  const tbody = document.getElementById('tBody');
+  if (!tbody) return;
+  const start = (currentPage-1)*PER;
+  const slice = filtered.slice(start, start+PER);
+
+  if (!slice.length) {
+    tbody.innerHTML = `<tr><td colspan="15"><div class="empty-st">
+      <div class="ei">🔍</div>
+      <div class="et">No claims found</div>
+      <div class="es">Try adjusting your filters or search term</div>
+    </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = slice.map((r, idx) => {
+    const rank = start+idx+1;
+    const rc   = rank===1?'r1':rank===2?'r2':rank===3?'r3':'ro';
+    const sc   = riskScore(r);
+    const scC  = sc>=75?'var(--red)':sc>=50?'var(--amber)':'var(--green)';
+    const gi   = ALL_DATA.indexOf(r);
+    const hasPy = r.insurance_company && r.insurance_company!=='None';
+    return `
+    <tr onclick="openDrawer(${gi})" style="animation-delay:${idx*.022}s">
+      <td><div class="rank-num ${rc}">${rank}</div></td>
+      <td><span class="cid-cell">${r.claim_id}</span></td>
+      <td>
+        <div style="font-weight:600">${r.patient_id}</div>
+        <div class="pt-sub">${r.patient_age?r.patient_age+'y · ':''}${r.patient_gender?r.patient_gender+' · ':''}${r.patient_city||'—'}</div>
+      </td>
+      <td><span class="badge b-gray" style="font-size:10px">${r.service_type||'—'}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${r.department||'—'}</td>
+      <td>
+        <div style="font-weight:600;font-size:12px">${r.payer_type}</div>
+        ${hasPy?`<div class="py-sub">${r.insurance_company}</div>`:''}
+      </td>
+      <td style="font-weight:600;font-family:var(--font-display)">${money(r.claim_amount||0)}</td>
+      <td class="${(r.balance_due||0)>0?'bal-due':'bal-clear'}">${money(r.balance_due||0)}</td>
+      <td><span class="dc ${daysClass(r.days_in_ar)}">${r.days_in_ar}d</span></td>
+      <td style="text-align:center;font-weight:600;color:var(--muted)">${r.followup_count||0}</td>
+      <td>
+        <div class="denial-cell">
+          <span class="denial-dot ${r.denial_flag?'yes':'no'}"></span>
+          ${r.denial_flag
+            ? '<span class="badge b-red" style="font-size:10px">Yes</span>'
+            : '<span style="font-size:11px;color:var(--muted2)">No</span>'}
+        </div>
+      </td>
+      <td>${prioBadge(r.priority_label)}</td>
+      <td><span class="sc ${stsClass(r.claim_status)}">${r.claim_status}</span></td>
+      <td>
+        <div class="risk-wrap">
+          <div class="risk-bar"><div class="risk-fill" style="width:${sc}%;background:${scC}"></div></div>
+          <span class="risk-val" style="color:${scC}">${sc}</span>
+        </div>
+      </td>
+      <td onclick="event.stopPropagation()">
+        <div style="display:flex;gap:5px">
+          <button class="act-btn" onclick="openModal('followModal')">✉ FU</button>
+          <button class="act-btn" onclick="openDrawer(${gi})">Details</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Pagination ──
+function renderPagination() {
+  const total = filtered.length;
+  const pages = Math.ceil(total/PER);
+  const start = (currentPage-1)*PER+1;
+  const end   = Math.min(currentPage*PER, total);
+  const pi = document.getElementById('pagInfo');
+  if (pi) pi.innerHTML = `Showing <span>${start}–${end}</span> of <span>${total.toLocaleString()}</span> claims`;
+  const pb = document.getElementById('pagBtns');
+  if (!pb) return;
+  let h = `<button class="pg-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+  const rng=[];
+  for (let p=1;p<=pages;p++) {
+    if (p===1||p===pages||Math.abs(p-currentPage)<=1) rng.push(p);
+    else if (rng[rng.length-1]!=='…') rng.push('…');
+  }
+  rng.forEach(p => {
+    if (p==='…') h+=`<span class="pg-btn" style="cursor:default;pointer-events:none">…</span>`;
+    else h+=`<button class="pg-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  });
+  h+=`<button class="pg-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>›</button>`;
+  pb.innerHTML=h;
+}
+
+function goPage(p) {
+  const pages = Math.ceil(filtered.length/PER);
+  if (p<1||p>pages) return;
+  currentPage=p; renderTable(); renderPagination();
+  document.querySelector('.table-card')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Detail Drawer ──
+function openDrawer(idx) {
+  const r = ALL_DATA[idx];
+  if (!r) return;
+  const pct = (r.claim_amount||0)>0 ? Math.round((r.payment_received||0)/(r.claim_amount)*100) : 0;
+  const sc  = riskScore(r);
+  const scC = sc>=75?'var(--red)':sc>=50?'var(--amber)':'var(--green)';
+  const balC= (r.balance_due||0)>0?'var(--amber)':'var(--green)';
+
+  document.getElementById('drawerContent').innerHTML = `
+    <div class="drawer-inner">
+      <div class="drawer-hd">
+        <div>
+          <div class="drawer-cid">${r.claim_id}</div>
+          <div class="drawer-svc">${r.service_type||'—'} · ${r.department||'—'}</div>
+        </div>
+        <button class="drawer-close" onclick="closeDrawer()">✕</button>
+      </div>
+      <div class="drawer-pills">
+        <span class="sc ${stsClass(r.claim_status)}">${r.claim_status}</span>
+        ${prioBadge(r.priority_label)}
+        <span class="badge b-gray" style="color:${scC}">Risk: ${sc}</span>
+      </div>
+
+      <div class="drawer-sec">
+        <div class="drawer-sec-ttl">Patient Information</div>
+        <div class="drawer-grid">
+          <div class="df"><label>Patient ID</label><div class="dv">${r.patient_id}</div></div>
+          <div class="df"><label>Age / Gender</label><div class="dv">${r.patient_age?r.patient_age+'y':''} ${r.patient_gender?'· '+r.patient_gender:''}</div></div>
+          <div class="df"><label>City</label><div class="dv">${r.patient_city||'—'}</div></div>
+          <div class="df"><label>Payer Type</label><div class="dv">${r.payer_type}</div></div>
+          ${r.insurance_company&&r.insurance_company!=='None'
+            ? `<div class="df"><label>Insurance Co.</label><div class="dv">${r.insurance_company}</div></div>` : ''}
+        </div>
+      </div>
+
+      <div class="drawer-sec">
+        <div class="drawer-sec-ttl">Financial Summary</div>
+        <div class="drawer-grid">
+          <div class="df"><label>Claim Amount</label><div class="dv money">${money(r.claim_amount||0)}</div></div>
+          <div class="df"><label>Approved Amount</label><div class="dv">${money(r.approved_amount||0)}</div></div>
+          <div class="df"><label>Payment Received</label><div class="dv" style="color:var(--green);font-weight:700">${money(r.payment_received||0)}</div></div>
+          <div class="df"><label>Balance Due</label><div class="dv" style="color:${balC};font-weight:700">${money(r.balance_due||0)}</div></div>
+        </div>
+        <div class="coll-bar-wrap">
+          <div class="coll-bar-top"><span>Collection Progress</span><span>${pct}%</span></div>
+          <div class="coll-bar"><div class="coll-fill" style="width:${pct}%"></div></div>
+        </div>
+      </div>
+
+      <div class="drawer-sec">
+        <div class="drawer-sec-ttl">AR Status</div>
+        <div class="drawer-grid">
+          <div class="df"><label>Days in AR</label><div class="dv"><span class="dc ${daysClass(r.days_in_ar)}">${r.days_in_ar} days</span></div></div>
+          <div class="df"><label>Follow-Up Count</label><div class="dv">${r.followup_count||0} times</div></div>
+          <div class="df"><label>Last Follow-Up</label><div class="dv">${r.last_followup_days?r.last_followup_days+' days ago':'—'}</div></div>
+          <div class="df"><label>Denial Flag</label><div class="dv">${r.denial_flag
+            ? '<span style="color:var(--red);font-weight:700">⚠️ Yes</span>'
+            : '<span style="color:var(--green);font-weight:700">✅ No</span>'}</div></div>
+        </div>
+      </div>
+
+      <div class="drawer-sec">
+        <div class="drawer-sec-ttl">Activity Timeline</div>
+        <div class="tl-wrap">
+          <div class="tl-row">
+            <div class="tl-spine"><div class="tl-dot-sm" style="background:var(--green)"></div><div class="tl-line-sm"></div></div>
+            <div class="tl-body"><div class="tl-msg">Claim submitted to ${r.payer_type}</div><div class="tl-ts">${r.days_in_ar} days ago</div></div>
+          </div>
+          ${(r.followup_count||0)>0?`
+          <div class="tl-row">
+            <div class="tl-spine"><div class="tl-dot-sm" style="background:var(--amber)"></div><div class="tl-line-sm"></div></div>
+            <div class="tl-body"><div class="tl-msg">${r.followup_count} follow-up(s) sent</div><div class="tl-ts">Last: ${r.last_followup_days} days ago</div></div>
+          </div>`:''}
+          ${r.denial_flag?`
+          <div class="tl-row">
+            <div class="tl-spine"><div class="tl-dot-sm" style="background:var(--red)"></div><div class="tl-line-sm"></div></div>
+            <div class="tl-body"><div class="tl-msg" style="color:var(--red);font-weight:600">⚠ Denial flag raised by payer</div><div class="tl-ts">Requires immediate action</div></div>
+          </div>`:''}
+          <div class="tl-row">
+            <div class="tl-spine"><div class="tl-dot-sm" style="background:var(--border2)"></div></div>
+            <div class="tl-body"><div class="tl-msg" style="color:var(--muted)">Awaiting resolution</div><div class="tl-ts">Current: ${r.claim_status}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer-sec">
+        <div class="drawer-sec-ttl">Actions</div>
+        <div class="d-actions">
+          <button class="dab primary" onclick="goToTracker('${r.claim_id}')">
+📨 Send Follow-Up Reminder
+</button>
+          <button class="dab secondary" onclick="showToast('📋 Note added for ${r.claim_id}!')">📋 Add Note</button>
+          <button class="dab secondary" onclick="exportCSV([ALL_DATA[${idx}]],'claim_${r.claim_id}.csv')">📁 Export Claim Details</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.getElementById('detailDrawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('detailDrawer').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeDrawer(); });
+
+function goToTracker(claimId){
+  window.location.href = `tracker.html?claim=${encodeURIComponent(claimId)}`;
+}
+
+async function generateMessages(){
+
+  const count = parseInt(document.getElementById("sendCount").value);
+
+  if(!count || count <= 0){
+    showToast("⚠ Enter a valid number");
+    return;
+  }
+
+  if(filtered.length === 0){
+    showToast("⚠ No claims available");
+    return;
+  }
+
+  // take first N rows exactly as displayed in table
+  const targets = filtered.slice(0, count);
+
+  const modal   = document.getElementById("batchModal");
+  const progBar = document.getElementById("batchProgress");
+  const title   = document.getElementById("batchTitle");
+  const desc    = document.getElementById("batchDesc");
+  const icon    = document.getElementById("batchIcon");
+
+  modal.style.display="flex";
+
+  icon.textContent="📨";
+  title.textContent=`Sending ${targets.length} Reminder${targets.length>1?'s':''}`;
+  desc.textContent="Starting process...";
+
+  let sent = 0;
+
+  for(const claim of targets){
+
+    try{
+
+      desc.textContent=`Processing ${claim.claim_id}...`;
+
+      const res = await fetch("/send-reminders",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          claims:[{
+            id:claim.claim_id,
+            patient:claim.patient_id,
+            payer:claim.payer_type,
+            balance:claim.balance_due,
+            days:claim.days_in_ar,
+            risk:claim.risk_score || riskScore(claim),
+            denial:claim.denial_flag ? 1 : 0
+          }]
+        })
+      });
+
+      const data = await res.json();
+
+      if(data.success) sent++;
+
+    }
+    catch(err){
+      console.error(err);
+    }
+
+    const progress = ((sent)/(targets.length))*100;
+    progBar.style.width = progress+"%";
+
+    await new Promise(r=>setTimeout(r,800));
+  }
+
+  icon.textContent="✅";
+  title.textContent="Reminders Sent";
+  desc.textContent=`${sent} email reminders dispatched successfully`;
+
+  showToast("✅ Batch reminders completed");
+
+  setTimeout(()=>{
+    modal.style.display="none";
+    progBar.style.width="0%";
+  },2000);
+}// ── Kick off ──
 renderPage();
 </script>
+
+<!-- DETAIL DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="detailDrawer"><div id="drawerContent"></div></div>
+
+<div id="batchModal" style="
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.35);
+display:none;
+align-items:center;
+justify-content:center;
+z-index:9999;
+">
+
+<div style="
+background:white;
+padding:30px;
+border-radius:14px;
+width:420px;
+text-align:center;
+box-shadow:0 20px 40px rgba(0,0,0,.25);
+">
+
+<div id="batchIcon" style="font-size:42px;margin-bottom:10px">📨</div>
+
+<div id="batchTitle" style="font-size:18px;font-weight:700;margin-bottom:6px">
+Sending Reminders
+</div>
+
+<div id="batchDesc" style="font-size:13px;color:#666;margin-bottom:18px">
+Preparing claims...
+</div>
+
+<div style="
+height:10px;
+background:#e6edf5;
+border-radius:6px;
+overflow:hidden;
+">
+
+<div id="batchProgress" style="
+height:100%;
+width:0%;
+background:#0d7377;
+transition:width .4s;
+"></div>
+
+</div>
+
+</div>
+</div>
 </body>
 </html>

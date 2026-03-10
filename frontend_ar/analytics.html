@@ -1,44 +1,902 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><title>ARFlow AI — Analytics</title><link rel="stylesheet" href="css/styles.css"/></head>
-<body><div class="app-layout" id="app"></div>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ARFlow AI — Analytics & AR Performance</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+  /* ══ Layout fix ══ */
+  body { display:flex; min-height:100vh; }
+  .app-layout { display:flex; width:100%; min-height:100vh; }
+  .main-area  { margin-left:var(--sidebar); flex:1; display:flex; flex-direction:column; min-height:100vh; min-width:0; }
+  .content    { padding:24px 28px; flex:1; min-width:0; }
+
+  /* Topbar shimmer */
+  .topbar { position:relative; }
+  .topbar::after {
+    content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,var(--teal),var(--gold),var(--teal));
+    background-size:200% 100%; animation:shimmer 3s linear infinite;
+  }
+
+  /* Notif btn */
+  .notif-btn { position:relative; width:36px; height:36px; border-radius:var(--r-sm); background:var(--bg); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; text-decoration:none; transition:border-color .2s; }
+  .notif-btn:hover { border-color:var(--teal); }
+  .notif-dot { position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--red); border:2px solid var(--white); }
+
+  /* Period Tabs */
+  .period-tabs { display:flex; background:var(--bg2); border:1.5px solid var(--border); border-radius:var(--r-sm); padding:3px; gap:2px; }
+  .period-tab  { padding:5px 13px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; color:var(--muted); border:none; background:transparent; font-family:var(--font-body); transition:all .2s; }
+  .period-tab.active { background:var(--teal); color:#fff; box-shadow:0 2px 8px rgba(13,115,119,.3); }
+  .period-tab:hover:not(.active) { color:var(--navy); background:var(--white); }
+
+  /* AI Insight Strip */
+  .insight-strip { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+  .ins-card { background:var(--white); border:1.5px solid var(--border); border-radius:var(--r); padding:15px; display:flex; gap:12px; box-shadow:var(--shadow-sm); animation:fadeUp .4s both; }
+  .ins-card:nth-child(1){animation-delay:.02s} .ins-card:nth-child(2){animation-delay:.06s} .ins-card:nth-child(3){animation-delay:.10s}
+  .ins-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+  .ins-title { font-family:var(--font-display); font-size:13px; font-weight:700; margin-bottom:3px; color:var(--navy); }
+  .ins-desc  { font-size:12px; color:var(--muted); line-height:1.5; }
+
+  /* 5-col KPI row */
+  .kpi-row5 { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:20px; }
+  .kpi5 { background:var(--white); border:1.5px solid var(--border); border-radius:14px; padding:18px; position:relative; overflow:hidden; transition:transform .2s; box-shadow:var(--shadow-sm); animation:fadeUp .4s both; }
+  .kpi5:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+  .kpi5::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; }
+  .kpi5.c1::after{background:var(--teal);}  .kpi5.c2::after{background:var(--green);}
+  .kpi5.c3::after{background:var(--amber);} .kpi5.c4::after{background:var(--red);}
+  .kpi5.c5::after{background:#7c3aed;}
+  .kpi5:nth-child(1){animation-delay:.04s} .kpi5:nth-child(2){animation-delay:.08s}
+  .kpi5:nth-child(3){animation-delay:.12s} .kpi5:nth-child(4){animation-delay:.16s} .kpi5:nth-child(5){animation-delay:.20s}
+  .kpi5-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; font-weight:600; }
+  .kpi5-val { font-family:var(--font-display); font-size:26px; font-weight:800; line-height:1; margin-bottom:8px; }
+  .kpi5.c1 .kpi5-val{color:var(--teal);}   .kpi5.c2 .kpi5-val{color:var(--green);}
+  .kpi5.c3 .kpi5-val{color:var(--amber);}  .kpi5.c4 .kpi5-val{color:var(--red);}
+  .kpi5.c5 .kpi5-val{color:#7c3aed;}
+  .kpi5-delta { font-size:12px; font-weight:500; }
+  .up{color:var(--green);} .dn{color:var(--red);}
+
+  /* Layout grids */
+  .g2    { display:grid; grid-template-columns:1fr 1fr;    gap:20px; margin-bottom:20px; }
+  .g3    { display:grid; grid-template-columns:1.55fr 1fr; gap:20px; margin-bottom:20px; }
+  .gfull { margin-bottom:20px; }
+
+  .card { border-radius:16px !important; }
+  .card-btn { font-size:12px; color:var(--teal); cursor:pointer; font-weight:600; border:none; background:none; font-family:var(--font-body); transition:color .15s; }
+  .card-btn:hover { color:var(--teal-d); }
+
+  canvas { display:block; width:100% !important; }
+  .cv-wrap { width:100%; }
+
+  /* Legend */
+  .legend-line   { display:inline-block; width:18px; height:3px; border-radius:2px; vertical-align:middle; }
+  .legend-dashed { display:inline-block; width:18px; height:0; border-top:2px dashed #12a06b; vertical-align:middle; }
+  .legend-dot    { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; }
+
+  /* Rings */
+  .ring-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:4px 0; }
+  .ring-item { text-align:center; }
+  .ring-wrap { position:relative; width:88px; height:88px; margin:0 auto 8px; }
+  .ring-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ring-val    { font-family:var(--font-display); font-size:17px; font-weight:800; line-height:1; }
+  .ring-sub-lbl{ font-size:10px; color:var(--muted); }
+  .ring-lbl    { font-size:12px; color:var(--muted); font-weight:500; }
+
+  /* Aging / Payer bars */
+  .aging-rows,.payer-rows { display:flex; flex-direction:column; gap:11px; }
+  .aging-row,.payer-row   { display:flex; align-items:center; gap:10px; }
+  .aging-lbl { font-size:12px; color:var(--muted); width:80px; flex-shrink:0; font-weight:500; }
+  .payer-nm  { font-size:12px; color:var(--muted); width:136px; flex-shrink:0; font-weight:500; }
+  .bar-bg    { flex:1; height:8px; background:var(--bg2); border-radius:4px; overflow:hidden; border:1px solid var(--border); }
+  .bar-fill  { height:100%; border-radius:4px; transition:width 1.1s cubic-bezier(.4,0,.2,1); }
+  .bar-pct   { font-size:12px; font-weight:700; width:52px; text-align:right; }
+  .bar-side  { font-size:11px; color:var(--muted2); width:70px; text-align:right; }
+
+  /* Dept table */
+  .dept-tbl { width:100%; border-collapse:collapse; }
+  .dept-tbl th { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); font-weight:700; padding:0 12px 11px; text-align:left; border-bottom:1.5px solid var(--border); background:var(--bg); }
+  .dept-tbl td { padding:11px 12px; font-size:13px; border-bottom:1px solid var(--border); color:var(--text); }
+  .dept-tbl tr:last-child td { border-bottom:none; }
+  .dept-tbl tr:hover td { background:var(--teal-lt); cursor:pointer; }
+  .mini-bg   { height:5px; background:var(--bg2); border-radius:3px; overflow:hidden; margin-top:4px; width:80px; border:1px solid var(--border); }
+  .mini-fill { height:100%; border-radius:3px; }
+
+  /* Goals */
+  .goals-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .goal-card  { background:var(--bg); border:1.5px solid var(--border); border-radius:11px; padding:14px; }
+  .goal-hdr   { display:flex; justify-content:space-between; margin-bottom:9px; }
+  .goal-lbl   { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+  .goal-val-lbl { font-family:var(--font-display); font-size:15px; font-weight:800; }
+  .goal-track { height:5px; background:var(--border2); border-radius:3px; overflow:hidden; margin-bottom:7px; }
+  .goal-fill  { height:100%; border-radius:3px; transition:width 1s ease; }
+  .goal-meta  { display:flex; justify-content:space-between; font-size:11px; color:var(--muted2); }
+
+  /* MoM cells */
+  .mom-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+  .mom-cell { text-align:center; padding:13px; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; }
+  .mom-val  { font-family:var(--font-display); font-size:19px; font-weight:800; margin-bottom:3px; }
+  .mom-lbl  { font-size:11px; color:var(--muted); font-weight:500; }
+  .mom-delta{ font-size:11px; font-weight:600; margin-top:2px; }
+
+  /* Tooltip */
+  .tt { position:fixed; background:var(--navy); border:1px solid var(--navy-md); border-radius:10px; padding:10px 14px; font-size:12px; pointer-events:none; z-index:9999; opacity:0; transition:opacity .15s; min-width:140px; line-height:1.7; color:#fff; box-shadow:var(--shadow-lg); }
+  .tt-title { font-weight:700; color:#fff; margin-bottom:3px; }
+
+  @keyframes fadeUp  { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  </style>
+</head>
+<body>
+
+<div class="app-layout" id="app"></div>
 <script src="js/shared.js"></script>
 <script>
-requireAuth();const DATA=loadData();
-document.getElementById('app').innerHTML=renderSidebar('analytics')+`<div class="main-area">${renderTopbar('Analytics & Reports','Performance metrics and insights')}<div class="content" id="c"></div></div>`+renderToast();
-const paid=DATA.filter(d=>d.claim_status==='Paid');
-const unpaid=DATA.filter(d=>d.claim_status!=='Paid');
-const totalBill=DATA.reduce((s,d)=>s+(d.claim_amount||0),0);
-const totalRecv=DATA.reduce((s,d)=>s+(d.payment_received||0),0);
-const totalBal=DATA.reduce((s,d)=>s+(d.balance_due||0),0);
-const collRate=totalBill?Math.round(totalRecv/totalBill*100):0;
-const denialRate=DATA.length?Math.round(DATA.filter(d=>d.denial_flag).length/DATA.length*100):0;
-const avgAR=DATA.length?Math.round(DATA.reduce((s,d)=>s+(d.days_in_ar||0),0)/DATA.length):0;
-const payers=[...new Set(DATA.map(d=>d.payer_type))];
-const maxPayerBal=Math.max(...payers.map(p=>DATA.filter(d=>d.payer_type===p).reduce((s,d)=>s+(d.balance_due||0),0)),1);
-const depts=[...new Set(DATA.map(d=>d.department))];
-document.getElementById('c').innerHTML=`
-<div class="kpi-grid">
-  <div class="kpi" style="animation-delay:.05s"><div class="kpi-top"><div class="kpi-ic ki-g">💵</div><span class="kpi-trend t-up">${collRate}%</span></div><div class="kpi-val" id="a1">—</div><div class="kpi-lbl">Total Collected</div><div class="kpi-foot">of ${money(totalBill)} billed</div></div>
-  <div class="kpi" style="animation-delay:.10s"><div class="kpi-top"><div class="kpi-ic ki-r">❌</div><span class="kpi-trend t-dn">${denialRate}%</span></div><div class="kpi-val" id="a2">—</div><div class="kpi-lbl">Denial Rate</div><div class="kpi-foot">Industry avg: 14%</div></div>
-  <div class="kpi" style="animation-delay:.15s"><div class="kpi-top"><div class="kpi-ic ki-a">⏱️</div></div><div class="kpi-val" id="a3">—</div><div class="kpi-lbl">Avg Days in AR</div><div class="kpi-foot">Target: under 45 days</div></div>
-  <div class="kpi" style="animation-delay:.20s"><div class="kpi-top"><div class="kpi-ic ki-t">📈</div><span class="kpi-trend t-up">${collRate}%</span></div><div class="kpi-val" id="a4">—</div><div class="kpi-lbl">Collection Rate</div><div class="kpi-foot">${paid.length} of ${DATA.length} paid</div></div>
-</div>
-<div class="analysis-grid">
-  <div class="card"><div class="card-hd"><div><div class="card-title">Performance Breakdown</div><div class="card-sub">Full dataset</div></div></div>
-    <div class="metric-list">
-      ${[['Total Claims',DATA.length+' claims',''],['Paid',paid.length+' ('+Math.round(paid.length/Math.max(DATA.length,1)*100)+'%)','color:var(--green)'],['Unpaid',unpaid.length+' claims','color:var(--red)'],['High Priority',DATA.filter(d=>d.priority_label==='High').length+' claims','color:var(--red)'],['Denial Flags',DATA.filter(d=>d.denial_flag).length+' claims','color:var(--amber)'],['Total Billed',money(totalBill),'font-weight:800'],['Total Collected',money(totalRecv),'color:var(--green);font-weight:800'],['Balance Due',money(totalBal),'color:var(--red);font-weight:800']].map(([l,v,st])=>`<div class="mi"><div class="mi-l">${l}</div><div class="mi-v" style="${st}">${v}</div></div>`).join('')}
-    </div>
+/* ════════════════════════════════════════════
+   ANALYTICS — fully dynamic from loadData()
+════════════════════════════════════════════ */
+requireAuth();
+const DATA = loadData();
+
+/* ── Colour palette ── */
+const TEAL='#0d7377',GREEN='#12a06b',AMBER='#e07c1a',RED='#dc3545',
+      PURPLE='#7c3aed',MUTED='#9daec8',NAVY='#0f1f3d',ORANGE='#f97316';
+
+/* ══════════════════════════════════════
+   DYNAMIC COMPUTATIONS FROM REAL DATA
+══════════════════════════════════════ */
+const paid      = DATA.filter(d => d.claim_status === 'Paid');
+const unpaid    = DATA.filter(d => d.claim_status !== 'Paid');
+const highPri   = DATA.filter(d => d.priority_label === 'High' && d.claim_status !== 'Paid');
+const denied    = DATA.filter(d => d.denial_flag);
+const totalBill = DATA.reduce((s,d) => s+(d.claim_amount     ||0), 0);
+const totalRecv = DATA.reduce((s,d) => s+(d.payment_received ||0), 0);
+const totalBal  = DATA.reduce((s,d) => s+(d.balance_due      ||0), 0);
+const collRate  = totalBill  ? Math.round(totalRecv/totalBill*100)      : 0;
+const denialRate= DATA.length? Math.round(denied.length/DATA.length*100): 0;
+const avgAR     = DATA.length? Math.round(DATA.reduce((s,d)=>s+(d.days_in_ar||0),0)/DATA.length): 0;
+
+/* ── Unique dims ── */
+const depts  = [...new Set(DATA.map(d=>d.department).filter(Boolean))];
+const payers = [...new Set(DATA.map(d=>d.payer_type).filter(Boolean))];
+
+/* ── DYNAMIC Aging buckets from real days_in_ar ── */
+function buildAging() {
+  const buckets = [
+    {lbl:'0–30 days',  min:0,   max:30,  color:GREEN },
+    {lbl:'31–60 days', min:31,  max:60,  color:AMBER },
+    {lbl:'61–90 days', min:61,  max:90,  color:ORANGE},
+    {lbl:'91–120 days',min:91,  max:120, color:RED   },
+    {lbl:'120+ days',  min:121, max:9999,color:RED   },
+  ];
+  const maxCnt = Math.max(...buckets.map(b => DATA.filter(d=>d.days_in_ar>=b.min&&d.days_in_ar<=b.max).length), 1);
+  return buckets.map(b => {
+    const rows  = DATA.filter(d => d.days_in_ar>=b.min && d.days_in_ar<=b.max);
+    const cnt   = rows.length;
+    const bal   = rows.reduce((s,d)=>s+(d.balance_due||0), 0);
+    return { lbl:b.lbl, cnt, bal, pct:Math.round(cnt/maxCnt*100)||2, color:b.color };
+  });
+}
+
+/* ── DYNAMIC Payer collection rates from real data ── */
+function buildPayerRates() {
+  return payers.map(p => {
+    const rows = DATA.filter(d => d.payer_type === p);
+    const billed   = rows.reduce((s,d)=>s+(d.claim_amount    ||0), 0);
+    const received = rows.reduce((s,d)=>s+(d.payment_received||0), 0);
+    const pct = billed ? Math.round(received/billed*100) : 0;
+    const avgDays = rows.length ? Math.round(rows.reduce((s,d)=>s+(d.days_in_ar||0),0)/rows.length) : 0;
+    const col = pct>=75?GREEN:pct>=50?AMBER:RED;
+    return { nm:p, pct, days:avgDays+'d avg', color:col };
+  }).sort((a,b) => b.pct - a.pct);
+}
+
+/* ── DYNAMIC Denial reasons — group by denial_flag & priority ── */
+function buildDenialData() {
+  // Group denied claims into meaningful buckets using available fields
+  const deniedClaims = DATA.filter(d => d.denial_flag);
+  const groups = {};
+  deniedClaims.forEach(d => {
+    // Use payer_type + priority as proxy for denial reason grouping
+    const key = d.payer_type || 'Unknown';
+    groups[key] = (groups[key] || 0) + 1;
+  });
+  // Convert to sorted array, top 8
+  return Object.entries(groups)
+    .map(([lbl, v]) => ({lbl, v}))
+    .sort((a,b) => b.v - a.v)
+    .slice(0, 8);
+}
+
+/* ── DYNAMIC trend — bucket DATA into periods by days_in_ar proxy ── */
+function buildTrendData(period) {
+  // Use days_in_ar as a time proxy to distribute claims into buckets
+  // collected = payment_received, denied = denial_flag sum per bucket
+  if (period === '7d') {
+    const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const buckets = labels.map((_,i) => DATA.filter(d => d.days_in_ar % 7 === i));
+    return {
+      lbl:'Last 7 days', labels,
+      collected: buckets.map(b => Math.round(b.reduce((s,d)=>s+(d.payment_received||0),0)/1000)),
+      target:    buckets.map(b => Math.round(Math.max(...buckets.map(bk=>bk.reduce((s,d)=>s+(d.payment_received||0),0)))/1000 * 0.9)||1),
+      denied:    buckets.map(b => b.filter(d=>d.denial_flag).length)
+    };
+  }
+  if (period === '30d') {
+    const labels = ['W1','W2','W3','W4'];
+    const buckets = labels.map((_,i) => DATA.filter(d => Math.floor((d.days_in_ar-1)/7) % 4 === i));
+    return {
+      lbl:'Last 30 days', labels,
+      collected: buckets.map(b => Math.round(b.reduce((s,d)=>s+(d.payment_received||0),0)/1000)),
+      target:    buckets.map(() => Math.round(totalRecv/4/1000 * 1.1)||1),
+      denied:    buckets.map(b => b.filter(d=>d.denial_flag).length)
+    };
+  }
+  if (period === '90d') {
+    const labels = ['Month 1','Month 2','Month 3'];
+    const buckets = labels.map((_,i) => DATA.filter(d => Math.floor(d.days_in_ar/30) % 3 === i));
+    return {
+      lbl:'Last 90 days', labels,
+      collected: buckets.map(b => Math.round(b.reduce((s,d)=>s+(d.payment_received||0),0)/1000)),
+      target:    buckets.map(() => Math.round(totalRecv/3/1000 * 1.1)||1),
+      denied:    buckets.map(b => b.filter(d=>d.denial_flag).length)
+    };
+  }
+  // 12m — split into 12 buckets
+  const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const buckets = labels.map((_,i) => DATA.filter(d => d.days_in_ar % 12 === i));
+  return {
+    lbl:'Last 12 months', labels,
+    collected: buckets.map(b => Math.round(b.reduce((s,d)=>s+(d.payment_received||0),0)/1000)),
+    target:    buckets.map(() => Math.round(totalRecv/12/1000 * 1.1)||1),
+    denied:    buckets.map(b => b.filter(d=>d.denial_flag).length)
+  };
+}
+
+/* ── Followup effectiveness — real followup_count data ── */
+function buildFollowupData() {
+  // Group by followup_count bracket
+  const w1 = DATA.filter(d=>(d.followup_count||0)===0);
+  const w2 = DATA.filter(d=>(d.followup_count||0)===1);
+  const w3 = DATA.filter(d=>(d.followup_count||0)===2);
+  const w4 = DATA.filter(d=>(d.followup_count||0)>=3);
+  const paidOf = arr => arr.filter(d=>d.claim_status==='Paid').length;
+  return {
+    labels:['0 F/U','1 F/U','2 F/U','3+ F/U'],
+    reminders:[w1.length, w2.length, w3.length, w4.length],
+    payments: [paidOf(w1), paidOf(w2), paidOf(w3), paidOf(w4)]
+  };
+}
+
+/* ── First pass rate (claims paid with 0 followups) ── */
+const firstPass = DATA.length ? Math.round(DATA.filter(d=>d.claim_status==='Paid'&&(d.followup_count||0)===0).length/Math.max(DATA.length,1)*100) : 0;
+const appealWin = DATA.length ? Math.round(DATA.filter(d=>d.denial_flag&&d.claim_status==='Paid').length/Math.max(denied.length,1)*100) : 0;
+
+let ACT = '30d';
+
+/* ── Build shell ── */
+document.getElementById('app').innerHTML =
+  renderSidebar('analytics') +
+  `<div class="main-area">
+    ${renderTopbar('Analytics & AR Performance','Performance metrics, insights and goals')}
+    <div class="content" id="pageContent"></div>
+  </div>` +
+  renderFollowModal(DATA) +
+  renderToast();
+
+/* ── Inject topbar extras ── */
+document.querySelector('.tb-right').insertAdjacentHTML('afterbegin', `
+  <a class="notif-btn" href="alerts.html">🔔<span class="notif-dot"></span></a>
+  <div class="ai-pill"><div class="pulse-dot"></div> AI Active</div>
+  <div class="period-tabs">
+    <button class="period-tab" onclick="setPeriod('7d',this)">7D</button>
+    <button class="period-tab active" onclick="setPeriod('30d',this)">30D</button>
+    <button class="period-tab" onclick="setPeriod('90d',this)">90D</button>
+    <button class="period-tab" onclick="setPeriod('12m',this)">12M</button>
   </div>
-  <div class="card"><div class="card-hd"><div><div class="card-title">Payer Performance</div><div class="card-sub">Balance due by payer</div></div></div>
-    <div class="metric-list">
-      ${payers.map(p=>{const pd=DATA.filter(d=>d.payer_type===p);const bal=pd.reduce((s,d)=>s+(d.balance_due||0),0);const w=Math.round(bal/maxPayerBal*100);return`<div class="mi"><div><div class="mi-l">${p}</div><div style="font-size:11px;color:var(--muted)">${pd.length} claims</div></div><div style="text-align:right"><div class="mi-v">${money(bal)}</div><div class="prog-bar" style="width:100px;margin-top:4px"><div class="prog-fill" data-w="${w}" style="width:0%;background:var(--teal)"></div></div></div></div>`;}).join('')}
+  <button class="btn btn-outline btn-sm" onclick="exportCSV(DATA,'arflow_analytics.csv')">⬇ Export</button>
+  <button class="btn btn-primary btn-sm" onclick="openModal('followModal')">+ Follow-Up</button>
+`);
+
+/* ══════════════════════════
+   RENDER PAGE
+══════════════════════════ */
+function renderPage() {
+  document.getElementById('pageContent').innerHTML = `
+
+    <!-- AI Insight Strip -->
+    <div class="insight-strip">
+      <div class="ins-card">
+        <div class="ins-icon" style="background:var(--green-lt)">📈</div>
+        <div>
+          <div class="ins-title">Collection Rate: ${collRate}%</div>
+          <div class="ins-desc">Live from ${DATA.length} claims. ${paid.length} paid, ${unpaid.length} still open. Target: 74%.</div>
+        </div>
+      </div>
+      <div class="ins-card">
+        <div class="ins-icon" style="background:var(--amber-lt)">⚠️</div>
+        <div>
+          <div class="ins-title">${highPri.length} Claims Need Immediate Action</div>
+          <div class="ins-desc">AI-flagged High priority with outstanding balance. ${DATA.filter(d=>d.days_in_ar>=90).length} claims past 90-day threshold.</div>
+        </div>
+      </div>
+      <div class="ins-card">
+        <div class="ins-icon" style="background:${denialRate>12?'var(--red-lt)':'var(--teal-lt)'}">🚨</div>
+        <div>
+          <div class="ins-title">Denial Rate: ${denialRate}% ${denialRate>12?'— Elevated':'— In Range'}</div>
+          <div class="ins-desc">${denied.length} claims flagged for denial. Industry avg: 14%. Avg days in AR: ${avgAR}d.</div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
-<div class="card"><div class="card-hd"><div><div class="card-title">Department Analysis</div><div class="card-sub">Claims breakdown by dept</div></div><button class="btn btn-outline btn-sm" onclick="exportCSV(DATA,'arflow_analytics.csv')">⬇ Export</button></div>
-  <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Department</th><th>Total Claims</th><th>Unpaid</th><th>Balance Due</th><th>Avg Days AR</th><th>Denial Rate</th></tr></thead><tbody>
-  ${depts.map(dept=>{const dd=DATA.filter(d=>d.department===dept);const up=dd.filter(d=>d.claim_status!=='Paid');const bal=up.reduce((s,d)=>s+(d.balance_due||0),0);const avg=dd.length?Math.round(dd.reduce((s,d)=>s+(d.days_in_ar||0),0)/dd.length):0;const dr=dd.length?Math.round(dd.filter(d=>d.denial_flag).length/dd.length*100):0;return`<tr><td style="font-weight:600;font-family:var(--font-display)">${dept}</td><td style="font-weight:700">${dd.length}</td><td>${up.length}</td><td style="font-weight:700;font-family:var(--font-display);color:${bal>5000?'var(--red)':'var(--navy)'}">${money(bal)}</td><td><span style="${ageStyle(avg)}">${avg}d</span></td><td>${dr>20?`<span class="badge b-red">${dr}%</span>`:dr>10?`<span class="badge b-amb">${dr}%</span>`:`<span class="badge b-green">${dr}%</span>`}</td></tr>`;}).join('')}
-  </tbody></table></div>
-</div>`;
-setTimeout(()=>{animateCount(document.getElementById('a1'),totalRecv,'$');animateCount(document.getElementById('a2'),denialRate,'','%');animateCount(document.getElementById('a3'),avgAR,'','d');animateCount(document.getElementById('a4'),collRate,'','%');document.querySelectorAll('.prog-fill[data-w]').forEach(b=>b.style.width=b.dataset.w+'%');},150);
-</script></body></html>
+
+    <!-- 5-col KPIs -->
+    <div class="kpi-row5">
+      <div class="kpi5 c1">
+        <div class="kpi5-lbl">Total AR Balance</div>
+        <div class="kpi5-val" id="kv1">—</div>
+        <div class="kpi5-delta dn">${unpaid.length} unpaid claims</div>
+      </div>
+      <div class="kpi5 c2">
+        <div class="kpi5-lbl">Total Collected</div>
+        <div class="kpi5-val" id="kv2">—</div>
+        <div class="kpi5-delta up">▲ ${collRate}% collection rate</div>
+      </div>
+      <div class="kpi5 c3">
+        <div class="kpi5-lbl">Avg Days in AR</div>
+        <div class="kpi5-val" id="kv3">—</div>
+        <div class="kpi5-delta ${avgAR>45?'dn':'up'}">${avgAR>45?'▲ Above':'✓ Under'} 45-day target</div>
+      </div>
+      <div class="kpi5 c4">
+        <div class="kpi5-lbl">Denial Rate</div>
+        <div class="kpi5-val" id="kv4">—</div>
+        <div class="kpi5-delta dn">Industry avg: 14%</div>
+      </div>
+      <div class="kpi5 c5">
+        <div class="kpi5-lbl">First-Pass Rate</div>
+        <div class="kpi5-val" id="kv5">—</div>
+        <div class="kpi5-delta ${firstPass>=65?'up':'dn'}">${firstPass>=65?'✓ Above':'▼ Below'} 65% goal</div>
+      </div>
+    </div>
+
+    <!-- Row 1: Trend + Status Rings -->
+    <div class="g3">
+      <div class="card">
+        <div class="card-hd">
+          <div>
+            <div class="card-title">Collections Trend</div>
+            <div class="card-sub" id="trendSub">Last 30 days</div>
+          </div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+            <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span class="legend-line" style="background:var(--teal)"></span>Collected</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span class="legend-dashed"></span>Target</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span class="legend-dot" style="background:var(--red)"></span>Denied</span>
+          </div>
+        </div>
+        <div class="cv-wrap"><canvas id="trendCv" style="height:220px"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Claim Status Split</div>
+          <span class="card-sub">Live · ${DATA.length} claims</span>
+        </div>
+        <div class="ring-grid">
+          ${[
+            ['Pending', Math.round(DATA.filter(d=>d.claim_status==='Pending').length/Math.max(DATA.length,1)*100), AMBER, 'ring1'],
+            ['Paid',    Math.round(paid.length/Math.max(DATA.length,1)*100), GREEN, 'ring2'],
+            ['Partial', Math.round(DATA.filter(d=>d.claim_status==='Partial').length/Math.max(DATA.length,1)*100), PURPLE, 'ring3'],
+            ['Denied',  Math.round(DATA.filter(d=>d.claim_status==='Denied').length/Math.max(DATA.length,1)*100), RED, 'ring4'],
+          ].map(([lbl,pct,col,id]) => `
+          <div class="ring-item">
+            <div class="ring-wrap"><canvas id="${id}" width="88" height="88"></canvas>
+              <div class="ring-center"><div class="ring-val" style="color:${col}">${pct}%</div><div class="ring-sub-lbl">of total</div></div>
+            </div><div class="ring-lbl">${lbl}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Aging + Payer Rates -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd">
+          <div>
+            <div class="card-title">AR Aging Distribution</div>
+            <div class="card-sub" id="agingModeLbl">Showing claim count</div>
+          </div>
+          <button class="card-btn" onclick="toggleAging()">Toggle View</button>
+        </div>
+        <div class="aging-rows" id="agingRows"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Payer Collection Rates</div>
+          <span class="card-sub">Live from real data</span>
+        </div>
+        <div class="payer-rows" id="payerRows"></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Denial Analysis + Follow-Up Effectiveness -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Denial by Payer</div>
+          <div class="card-sub">Click a bar to drill down · ${denied.length} total denials</div>
+        </div>
+        <div class="cv-wrap"><canvas id="denialCv" style="height:210px"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Follow-Up Effectiveness</div>
+          <div class="card-sub">Claims by follow-up count vs paid</div>
+        </div>
+        <div class="cv-wrap"><canvas id="followupCv" style="height:210px"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Row 4: MoM Summary + Dept Table -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Snapshot Summary</div>
+          <span class="card-sub">Live from ${DATA.length} claims</span>
+        </div>
+        <div class="mom-grid">
+          <div class="mom-cell"><div class="mom-val" style="color:var(--green)">${money(totalRecv)}</div><div class="mom-lbl">Total Collected</div><div class="mom-delta up">▲ Live data</div></div>
+          <div class="mom-cell"><div class="mom-val" style="color:var(--amber)">${avgAR}d</div><div class="mom-lbl">Avg Days AR</div><div class="mom-delta ${avgAR>45?'dn':'up'}">${avgAR>45?'▲ Above target':'✓ On target'}</div></div>
+          <div class="mom-cell"><div class="mom-val" style="color:var(--red)">${denialRate}%</div><div class="mom-lbl">Denial Rate</div><div class="mom-delta dn">▲ Monitor</div></div>
+          <div class="mom-cell"><div class="mom-val" style="color:var(--green)">${collRate}%</div><div class="mom-lbl">Collect Rate</div><div class="mom-delta up">▲ Live</div></div>
+        </div>
+        <div class="cv-wrap"><canvas id="momCv" style="height:140px"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Department Performance</div>
+          <button class="card-btn" onclick="exportCSV(DATA,'arflow_dept.csv')">⬇ Export →</button>
+        </div>
+        <table class="dept-tbl">
+          <thead><tr><th>Department</th><th>Claims</th><th>Balance</th><th>Collect %</th></tr></thead>
+          <tbody id="deptBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Row 5: Performance Breakdown + Payer Detail -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><div><div class="card-title">Performance Breakdown</div><div class="card-sub">Full live dataset — ${DATA.length} claims</div></div></div>
+        <div class="metric-list">
+          ${[
+            ['Total Claims',    DATA.length+' claims',                                                                               ''],
+            ['Paid',            paid.length+' ('+Math.round(paid.length/Math.max(DATA.length,1)*100)+'%)',                           'color:var(--green)'],
+            ['Unpaid',          unpaid.length+' claims',                                                                             'color:var(--red)'],
+            ['High Priority',   highPri.length+' claims',                                                                            'color:var(--red)'],
+            ['Denial Flags',    denied.length+' claims',                                                                             'color:var(--amber)'],
+            ['Total Billed',    money(totalBill),                                                                                    'font-weight:800'],
+            ['Total Collected', money(totalRecv),                                                                                    'color:var(--green);font-weight:800'],
+            ['Balance Due',     money(totalBal),                                                                                     'color:var(--red);font-weight:800'],
+          ].map(([l,v,st])=>`<div class="mi"><div class="mi-l">${l}</div><div class="mi-v" style="${st}">${v}</div></div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div><div class="card-title">Payer Detail — Balance Due</div><div class="card-sub">Live from loaded data</div></div></div>
+        <div class="metric-list" id="payerDetail"></div>
+      </div>
+    </div>
+
+    <!-- Row 6: Goals Tracker -->
+    <div class="gfull">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Performance Goals Tracker</div>
+          <span class="badge b-teal">Live KPIs applied</span>
+        </div>
+        <div class="goals-grid" id="goalsGrid"></div>
+      </div>
+    </div>
+  `;
+
+  /* ── Animate KPI counters ── */
+  setTimeout(() => {
+    animateCount(document.getElementById('kv1'), totalBal,    '$');
+    animateCount(document.getElementById('kv2'), totalRecv,   '$');
+    animateCount(document.getElementById('kv3'), avgAR,       '', 'd');
+    animateCount(document.getElementById('kv4'), denialRate,  '', '%');
+    animateCount(document.getElementById('kv5'), firstPass,   '', '%');
+  }, 120);
+
+  /* ── Draw rings ── */
+  const ringDef = [
+    [Math.round(DATA.filter(d=>d.claim_status==='Pending').length/Math.max(DATA.length,1)*100), AMBER,  'ring1'],
+    [Math.round(paid.length/Math.max(DATA.length,1)*100),                                        GREEN,  'ring2'],
+    [Math.round(DATA.filter(d=>d.claim_status==='Partial').length/Math.max(DATA.length,1)*100), PURPLE, 'ring3'],
+    [Math.round(DATA.filter(d=>d.claim_status==='Denied').length/Math.max(DATA.length,1)*100),  RED,    'ring4'],
+  ];
+  ringDef.forEach(([pct,col,id]) => drawRing(id, pct, col));
+
+  /* ── Sub-renders ── */
+  renderAging();
+  renderPayerRates();
+  renderDeptTable();
+  renderPayerDetail();
+  renderGoals();
+  drawTrend();
+  drawDenial();
+  drawFollowup();
+  drawMom();
+
+  /* ── Trend tooltip ── */
+  const tc = document.getElementById('trendCv');
+  tc.addEventListener('mousemove', trendTooltip);
+  tc.addEventListener('mouseleave', ()=>{ document.getElementById('ttBox').style.opacity='0'; });
+  document.getElementById('denialCv').addEventListener('click', denialClick);
+}
+
+/* ══════════════════════════
+   CANVAS UTILITIES
+══════════════════════════ */
+function sizeCanvas(cv, h) {
+  const w = cv.parentElement.clientWidth || 500;
+  cv.width=w; cv.height=h;
+  return {ctx:cv.getContext('2d'), W:w, H:h};
+}
+function rRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function drawAxes(ctx,W,H,pad,labels,maxV,gridN,unit){
+  ctx.save();
+  ctx.font='11px DM Sans,sans-serif'; ctx.fillStyle=MUTED; ctx.textAlign='center';
+  labels.forEach((l,i)=>{
+    const x=pad.l+i*(W-pad.l-pad.r)/(labels.length-1||1);
+    ctx.fillText(l,x,H-4);
+  });
+  for(let g=0;g<=gridN;g++){
+    const v=(g/gridN)*maxV;
+    const y=H-pad.b-(v/maxV)*(H-pad.t-pad.b);
+    ctx.textAlign='right';
+    ctx.fillText(unit==='$'?'$'+Math.round(v)+'K':Math.round(v)+(unit||''), pad.l-5, y+3.5);
+    ctx.strokeStyle='rgba(196,206,223,0.65)'; ctx.lineWidth=0.7;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawLine(ctx,W,H,pad,data,color,dashed,fill,maxV){
+  if(!data.length)return;
+  const n=data.length;
+  const aMax=maxV!==undefined?maxV:Math.max(...data)||1;
+  const px=i=>pad.l+i*(W-pad.l-pad.r)/(n-1||1);
+  const py=v=>H-pad.b-(v/aMax)*(H-pad.t-pad.b);
+  ctx.save();
+  if(dashed) ctx.setLineDash([6,4]);
+  ctx.strokeStyle=color; ctx.lineWidth=2.2; ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(px(0),py(data[0]));
+  for(let i=1;i<n;i++){
+    const cx=(px(i-1)+px(i))/2;
+    ctx.bezierCurveTo(cx,py(data[i-1]),cx,py(data[i]),px(i),py(data[i]));
+  }
+  ctx.stroke();
+  if(fill){
+    ctx.setLineDash([]);
+    ctx.lineTo(px(n-1),H-pad.b); ctx.lineTo(px(0),H-pad.b); ctx.closePath();
+    const gr=ctx.createLinearGradient(0,pad.t,0,H-pad.b);
+    gr.addColorStop(0,color+'30'); gr.addColorStop(1,color+'04');
+    ctx.fillStyle=gr; ctx.fill();
+  }
+  ctx.restore();
+}
+function drawDots(ctx,W,H,pad,data,color,maxV){
+  const n=data.length;
+  const aMax=maxV!==undefined?maxV:Math.max(...data)||1;
+  const px=i=>pad.l+i*(W-pad.l-pad.r)/(n-1||1);
+  const py=v=>H-pad.b-(v/aMax)*(H-pad.t-pad.b);
+  ctx.save();
+  data.forEach((v,i)=>{
+    ctx.beginPath(); ctx.arc(px(i),py(v),4,0,Math.PI*2);
+    ctx.fillStyle=color; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  });
+  ctx.restore();
+}
+
+/* ── Trend Chart (dynamic data) ── */
+function drawTrend(){
+  const cv=document.getElementById('trendCv'); if(!cv)return;
+  const {ctx,W,H}=sizeCanvas(cv,220);
+  const d=buildTrendData(ACT);
+  const pad={l:52,r:14,t:14,b:26};
+  const allV=[...d.collected,...d.target,...d.denied];
+  const maxV=Math.ceil(Math.max(...allV,1)*1.12/10)*10||100;
+  drawAxes(ctx,W,H,pad,d.labels,maxV,4,'$');
+  drawLine(ctx,W,H,pad,d.denied,RED,false,true,maxV);
+  drawLine(ctx,W,H,pad,d.target,GREEN,true,false,maxV);
+  drawLine(ctx,W,H,pad,d.collected,TEAL,false,true,maxV);
+  drawDots(ctx,W,H,pad,d.collected,TEAL,maxV);
+  cv._d=d; cv._pad=pad; cv._maxV=maxV;
+}
+
+function trendTooltip(e){
+  const d=this._d; if(!d)return;
+  const rect=this.getBoundingClientRect();
+  const mx=e.clientX-rect.left;
+  const n=d.labels.length;
+  const segW=(this.width-this._pad.l-this._pad.r)/(n-1||1);
+  const idx=Math.min(n-1,Math.max(0,Math.round((mx-this._pad.l)/segW)));
+  const tt=document.getElementById('ttBox');
+  document.getElementById('ttT').textContent=d.labels[idx];
+  document.getElementById('ttV').innerHTML=
+    `<span style="color:${TEAL}">Collected $${d.collected[idx]}K</span><br>`+
+    `<span style="color:${GREEN}">Target $${d.target[idx]}K</span><br>`+
+    `<span style="color:${RED}">Denied ${d.denied[idx]}</span>`;
+  tt.style.left=(e.clientX+14)+'px';
+  tt.style.top=(e.clientY-46)+'px';
+  tt.style.opacity='1';
+}
+
+/* ── Ring Chart ── */
+function drawRing(id,pct,color){
+  const cv=document.getElementById(id); if(!cv)return;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,88,88);
+  const cx=44,cy=44,r=34,lw=9;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle='#dde4f0'; ctx.lineWidth=lw; ctx.stroke();
+  if(pct>0){
+    ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+(pct/100)*Math.PI*2);
+    ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.stroke();
+  }
+}
+
+/* ── Denial Bar Chart (dynamic payer grouping) ── */
+function drawDenial(){
+  const cv=document.getElementById('denialCv'); if(!cv)return;
+  const {ctx,W,H}=sizeCanvas(cv,210);
+  const data=buildDenialData();
+  if(!data.length){
+    ctx.fillStyle=MUTED; ctx.font='13px DM Sans'; ctx.textAlign='center';
+    ctx.fillText('No denial data available',W/2,H/2); return;
+  }
+  const DCOL=[RED,RED,AMBER,AMBER,TEAL,TEAL,MUTED,MUTED];
+  const pad={l:130,r:38,t:6,b:6};
+  const maxV=Math.max(...data.map(d=>d.v),1);
+  const rowH=Math.floor((H-pad.t-pad.b)/data.length);
+  ctx.save();
+  data.forEach((d,i)=>{
+    const y=pad.t+i*rowH+2;
+    const bh=rowH-6;
+    const bw=(d.v/maxV)*(W-pad.l-pad.r);
+    ctx.fillStyle='rgba(221,228,240,0.8)';
+    rRect(ctx,pad.l,y,W-pad.l-pad.r,bh,3); ctx.fill();
+    ctx.fillStyle=(DCOL[i]||MUTED)+'bb';
+    rRect(ctx,pad.l,y,bw,bh,3); ctx.fill();
+    ctx.font='11px DM Sans,sans-serif'; ctx.fillStyle=MUTED;
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    const lbl=d.lbl.length>18?d.lbl.substring(0,16)+'…':d.lbl;
+    ctx.fillText(lbl,pad.l-6,y+bh/2);
+    ctx.fillStyle=NAVY; ctx.textAlign='left'; ctx.font='bold 11px DM Sans,sans-serif';
+    ctx.fillText(d.v,pad.l+bw+5,y+bh/2);
+  });
+  ctx.restore();
+  cv._denialData=data;
+}
+
+function denialClick(e){
+  const data=this._denialData; if(!data)return;
+  const rect=this.getBoundingClientRect();
+  const my=e.clientY-rect.top;
+  const rowH=Math.floor((this.height-12)/data.length);
+  const idx=Math.floor((my-6)/rowH);
+  if(idx>=0&&idx<data.length)
+    showToast('🔍 '+data[idx].lbl+': '+data[idx].v+' denied claims');
+}
+
+/* ── Follow-Up Chart (dynamic) ── */
+function drawFollowup(){
+  const cv=document.getElementById('followupCv'); if(!cv)return;
+  const {ctx,W,H}=sizeCanvas(cv,210);
+  const fu=buildFollowupData();
+  const pad={l:40,r:14,t:22,b:26};
+  const maxV=Math.max(...fu.reminders,...fu.payments,1)*1.15;
+  drawAxes(ctx,W,H,pad,fu.labels,maxV,4,'');
+  drawLine(ctx,W,H,pad,fu.reminders,PURPLE,false,true,maxV);
+  drawLine(ctx,W,H,pad,fu.payments, GREEN, false,false,maxV);
+  drawDots(ctx,W,H,pad,fu.reminders,PURPLE,maxV);
+  drawDots(ctx,W,H,pad,fu.payments, GREEN, maxV);
+  ctx.save();
+  ctx.fillStyle=PURPLE; ctx.fillRect(pad.l,6,14,3);
+  ctx.font='11px DM Sans'; ctx.fillStyle=MUTED; ctx.textAlign='left';
+  ctx.fillText('Claims Volume',pad.l+18,11);
+  ctx.fillStyle=GREEN; ctx.fillRect(pad.l+120,6,14,3);
+  ctx.fillStyle=MUTED; ctx.fillText('Paid',pad.l+138,11);
+  ctx.restore();
+}
+
+/* ── MoM Bar Chart (dynamic: unpaid vs paid split) ── */
+function drawMom(){
+  const cv=document.getElementById('momCv'); if(!cv)return;
+  const {ctx,W,H}=sizeCanvas(cv,140);
+  // 4 groups: Collected($K), Denials, High Priority, First Pass
+  const groups=['Collected($K)','Denials','High Pri','First Pass%'];
+  const vals=[
+    Math.round(totalRecv/1000),
+    denied.length,
+    highPri.length,
+    firstPass
+  ];
+  const targets=[
+    Math.round(totalBill/1000*0.74),
+    Math.round(DATA.length*0.08),
+    0,
+    65
+  ];
+  const pad={l:46,r:14,t:16,b:28};
+  const maxV=Math.max(...vals,...targets,1)*1.2;
+  const bW=(W-pad.l-pad.r)/groups.length*0.28;
+  ctx.save();
+  for(let g=0;g<=4;g++){
+    const v=(g/4)*maxV;
+    const y=H-pad.b-(v/maxV)*(H-pad.t-pad.b);
+    ctx.strokeStyle='rgba(196,206,223,0.55)'; ctx.lineWidth=0.7;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.font='10px DM Sans'; ctx.fillStyle=MUTED; ctx.textAlign='right';
+    ctx.fillText(v>=1000?(v/1000).toFixed(1)+'K':Math.round(v),pad.l-4,y+3.5);
+  }
+  groups.forEach((lbl,i)=>{
+    const gW=(W-pad.l-pad.r)/groups.length;
+    const gx=pad.l+i*gW+gW/2;
+    [[targets[i],MUTED+'88',bW/2+2],[vals[i],TEAL+'99',-(bW/2+2)]].forEach(([val,col,off])=>{
+      const bh=(val/maxV)*(H-pad.t-pad.b);
+      const bx=gx-off-bW/2, by=H-pad.b-bh;
+      ctx.fillStyle=col; rRect(ctx,bx,by,bW,bh,3); ctx.fill();
+    });
+    ctx.font='10px DM Sans'; ctx.fillStyle=MUTED; ctx.textAlign='center';
+    ctx.fillText(lbl,gx,H-3);
+  });
+  ctx.fillStyle=MUTED+'88'; ctx.fillRect(pad.l,2,10,6);
+  ctx.fillStyle=MUTED; ctx.textAlign='left'; ctx.font='10px DM Sans'; ctx.fillText('Target',pad.l+14,9);
+  ctx.fillStyle=TEAL+'aa'; ctx.fillRect(pad.l+60,2,10,6);
+  ctx.fillStyle=MUTED; ctx.fillText('Actual',pad.l+74,9);
+  ctx.restore();
+}
+
+/* ══════════════════════════
+   DATA-DRIVEN SUB-RENDERS
+══════════════════════════ */
+
+/* Aging — fully dynamic */
+let agingMode='count';
+function renderAging(){
+  const el=document.getElementById('agingRows'); if(!el)return;
+  const aging=buildAging();
+  document.getElementById('agingModeLbl').textContent=
+    agingMode==='count'?'Showing claim count':'Showing AR dollar value';
+  el.innerHTML=aging.map(a=>`
+    <div class="aging-row">
+      <div class="aging-lbl">${a.lbl}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${a.pct}%;background:${a.color}"></div></div>
+      <div class="bar-pct" style="color:${a.color}">${agingMode==='count'?a.cnt.toLocaleString():money(a.bal)}</div>
+      <div class="bar-side">${agingMode==='count'?money(a.bal):a.cnt.toLocaleString()}</div>
+    </div>`).join('');
+}
+function toggleAging(){ agingMode=agingMode==='count'?'dollar':'count'; renderAging(); }
+
+/* Payer rates — fully dynamic */
+function renderPayerRates(){
+  const el=document.getElementById('payerRows'); if(!el)return;
+  const rates=buildPayerRates();
+  if(!rates.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:12px">No payer data available</div>';
+    return;
+  }
+  el.innerHTML=rates.map(p=>`
+    <div class="payer-row">
+      <div class="payer-nm">${p.nm}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${p.pct}%;background:${p.color}"></div></div>
+      <div class="bar-pct" style="color:${p.color}">${p.pct}%</div>
+      <div class="bar-side">${p.days}</div>
+    </div>`).join('');
+}
+
+/* Dept table — live */
+function renderDeptTable(){
+  const el=document.getElementById('deptBody'); if(!el)return;
+  if(!depts.length){
+    el.innerHTML='<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px">No department data</td></tr>';
+    return;
+  }
+  el.innerHTML=depts.map(dept=>{
+    const dd=DATA.filter(d=>d.department===dept);
+    const bal=dd.reduce((s,d)=>s+(d.balance_due||0),0);
+    const cr =dd.reduce((s,d)=>s+(d.claim_amount||0),0);
+    const pct=cr?Math.round((1-bal/cr)*100):0;
+    const col=pct>=75?GREEN:pct>=55?AMBER:RED;
+    return `<tr>
+      <td style="font-weight:600;color:var(--navy)">${dept}</td>
+      <td>${dd.length}</td>
+      <td style="font-weight:700;font-family:var(--font-display);color:${bal>10000?'var(--red)':'var(--navy)'}">${money(bal)}</td>
+      <td>
+        <span style="font-weight:700;color:${col}">${pct}%</span>
+        <div class="mini-bg"><div class="mini-fill" style="width:${pct}%;background:${col}"></div></div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* Payer detail — live */
+function renderPayerDetail(){
+  const el=document.getElementById('payerDetail'); if(!el)return;
+  const maxBal=Math.max(...payers.map(p=>DATA.filter(d=>d.payer_type===p).reduce((s,d)=>s+(d.balance_due||0),0)),1);
+  el.innerHTML=payers.map(p=>{
+    const pd=DATA.filter(d=>d.payer_type===p);
+    const bal=pd.reduce((s,d)=>s+(d.balance_due||0),0);
+    const w=Math.round(bal/maxBal*100);
+    return `<div class="mi">
+      <div><div class="mi-l">${p}</div><div style="font-size:11px;color:var(--muted)">${pd.length} claims</div></div>
+      <div style="text-align:right">
+        <div class="mi-v">${money(bal)}</div>
+        <div class="prog-bar" style="width:90px;margin-top:4px">
+          <div class="prog-fill" data-w="${w}" style="width:0%;background:var(--teal)"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  setTimeout(()=>document.querySelectorAll('.prog-fill[data-w]').forEach(b=>b.style.width=b.dataset.w+'%'),200);
+}
+
+/* Goals — hybrid live+fixed targets */
+function renderGoals(){
+  const el=document.getElementById('goalsGrid'); if(!el)return;
+  const goals=[
+    {lbl:'Collection Rate', val:collRate+'%',     pct:collRate,                        target:'74%',  ok:collRate>=74,    note:collRate>=74?'+'+( collRate-74)+'% ✓':(collRate-74)+'% ✗'},
+    {lbl:'Cash Collected',  val:money(totalRecv), pct:Math.min(100,Math.round(totalRecv/Math.max(totalBill,1)*100)), target:money(Math.round(totalBill*0.74)), ok:collRate>=74, note:Math.round(totalRecv/Math.max(totalBill,1)*100)+'%'},
+    {lbl:'Denial Rate',     val:denialRate+'%',   pct:Math.min(100,denialRate*8),      target:'<8%',  ok:denialRate<=8,   note:denialRate<=8?'On Target ✓':'Exceeds ✗'},
+    {lbl:'Days to Collect', val:avgAR+'d',        pct:Math.min(100,Math.round(avgAR/45*100)), target:'45d', ok:avgAR<=45, note:avgAR<=45?'On Target ✓':(avgAR-45)+'d over'},
+    {lbl:'First-Pass Rate', val:firstPass+'%',    pct:firstPass,                       target:'65%',  ok:firstPass>=65,   note:firstPass>=65?'+'+( firstPass-65)+'% ✓':(firstPass-65)+'% ✗'},
+    {lbl:'Appeal Win Rate', val:appealWin+'%',    pct:appealWin,                       target:'80%',  ok:appealWin>=80,   note:appealWin>=80?'✓ On target':'✗ Below target'},
+  ];
+  el.innerHTML=goals.map(g=>{
+    const col=g.ok?GREEN:RED;
+    return `<div class="goal-card">
+      <div class="goal-hdr">
+        <div class="goal-lbl">${g.lbl}</div>
+        <div class="goal-val-lbl" style="color:${col}">${g.val}</div>
+      </div>
+      <div class="goal-track"><div class="goal-fill" style="width:${g.pct}%;background:${col}"></div></div>
+      <div class="goal-meta">
+        <span>Target: ${g.target}</span>
+        <span style="font-weight:700;color:${col}">${g.note}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Period switch ── */
+function setPeriod(p,btn){
+  ACT=p;
+  document.querySelectorAll('.period-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  const d=buildTrendData(p);
+  const sub=document.getElementById('trendSub');
+  if(sub) sub.textContent=d.lbl;
+  drawTrend();
+  showToast('📊 Switched to '+d.lbl);
+}
+
+/* ── Resize ── */
+let rsz;
+window.addEventListener('resize',()=>{
+  clearTimeout(rsz);
+  rsz=setTimeout(()=>{ drawTrend(); drawDenial(); drawFollowup(); drawMom(); },150);
+});
+
+/* ── Init ── */
+window.addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(renderPage)));
+</script>
+
+<!-- Tooltip -->
+<div class="tt" id="ttBox"><div class="tt-title" id="ttT"></div><div id="ttV"></div></div>
+</body>
+</html>
